@@ -1,0 +1,191 @@
+{
+  "registration": {
+    "valid": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com",
+      "password": "Secure@123",
+      "confirmPassword": "Secure@123",
+      "phone": "9876543210"
+    },
+    "invalid": {
+      "duplicateEmail": {
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "email": "testuser@example.com",
+        "password": "Test@1234",
+        "confirmPassword": "Test@1234",
+        "phone": "9876543211"
+      },
+      "invalidEmail": {
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "invalid-email",
+        "password": "Test@1234",
+        "confirmPassword": "Test@1234",
+        "phone": "9876543212"
+      },
+      "shortPassword": {
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "short.pass@example.com",
+        "password": "Ab1@",
+        "confirmPassword": "Ab1@",
+        "phone": "9876543213"
+      },
+      "weakPassword": {
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "weak.pass@example.com",
+        "password": "password",
+        "confirmPassword": "password",
+        "phone": "9876543214"
+      },
+      "shortName": {
+        "firstName": "A",
+        "lastName": "B",
+        "email": "short.name@example.com",
+        "password": "Test@1234",
+        "confirmPassword": "Test@1234",
+        "phone": "9876543215"
+      },
+      "invalidPhone": {
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "invalid.phone@example.com",
+        "password": "Test@1234",
+        "confirmPassword": "Test@1234",
+        "phone": "123"
+      },
+      "emptyFields": {
+        "firstName": "",
+        "lastName": "",
+        "email": "",
+        "password": "",
+        "confirmPassword": "",
+        "phone": ""
+      },
+      "mismatchPassword": {
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "mismatch@example.com",
+        "password": "Test@1234",
+        "confirmPassword": "Wrong@1234",
+        "phone": "9876543216"
+      }
+    }
+  },
+  "login": {
+    "valid": {
+      "email": "testuser@example.com",
+      "password": "Test@1234"
+    },
+    "invalid": {
+      "wrongPassword": {
+        "email": "testuser@example.com",
+        "password": "WrongPass@123"
+      },
+      "unregisteredEmail": {
+        "email": "nonexistent@example.com",
+        "password": "Test@1234"
+      },
+      "emptyEmail": {
+        "email": "",
+        "password": "Test@1234"
+      },
+      "emptyPassword": {
+        "email": "testuser@example.com",
+        "password": ""
+      }
+    }
+  },
+  "products": {
+    "searchKeywords": ["laptop", "phone", "headphones", "camera", "watch"],
+    "invalidSearch": "xyznonexistentproduct123",
+    "categories": ["Electronics", "Clothing", "Books", "Home & Kitchen", "Sports"],
+    "sortOptions": ["price-low-high", "price-high-low", "name-asc", "name-desc", "rating", "newest"],
+    "brands": ["Samsung", "Apple", "Sony", "Nike", "Adidas"],
+    "priceRanges": {
+      "low": { "min": 0, "max": 500 },
+      "medium": { "min": 500, "max": 2000 },
+      "high": { "min": 2000, "max": 10000 }
+    },
+    "ratings": [1, 2, 3, 4, 5]
+  },
+  "cart": {
+    "validQuantity": 2,
+    "maxQuantity": 10,
+    "invalidQuantity": 0,
+    "excessQuantity": 999
+  },
+  "checkout": {
+    "shippingAddress": {
+      "valid": {
+        "line1": "123 Main Street",
+        "line2": "Apt 4B",
+        "city": "New York",
+        "state": "NY",
+        "zip": "10001"
+      },
+      "invalid": {
+        "line1": "",
+        "line2": "",
+        "city": "",
+        "state": "",
+        "zip": "abc"
+      }
+    },
+    "paymentMethods": {
+      "creditCard": {
+        "method": "credit-card",
+        "cardNumber": "4111111111111111",
+        "expiryDate": "12/28",
+        "cvv": "123",
+        "nameOnCard": "Test User"
+      },
+      "upi": {
+        "method": "upi",
+        "upiId": "testuser@upi"
+      },
+      "cod": {
+        "method": "cod"
+      }
+    }
+  },
+  "reviews": {
+    "valid": {
+      "rating": 4,
+      "title": "Great product quality",
+      "comment": "This product exceeded my expectations. The quality is excellent and it arrived on time. Highly recommended for anyone looking for a reliable product."
+    },
+    "updated": {
+      "rating": 5,
+      "title": "Updated - Even better than expected",
+      "comment": "After using this product for a month, I can confidently say it is one of the best purchases I have made. Updating my review to 5 stars."
+    },
+    "invalid": {
+      "noRating": {
+        "rating": 0,
+        "title": "Missing rating",
+        "comment": "This review has no rating selected."
+      },
+      "shortTitle": {
+        "rating": 3,
+        "title": "Ok",
+        "comment": "This is a valid comment but the title is too short."
+      },
+      "shortComment": {
+        "rating": 3,
+        "title": "Short comment test",
+        "comment": "Short"
+      }
+    }
+  },
+  "profile": {
+    "updated": {
+      "firstName": "UpdatedFirst",
+      "lastName": "UpdatedLast",
+      "phone": "9998887776"
+    }
+  }
+}

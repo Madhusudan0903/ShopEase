@@ -1,0 +1,17 @@
+{
+  "name": "shopease-playwright-automation",
+  "version": "1.0.0",
+  "description": "Playwright automation framework for ShopEase shopping application",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:chrome": "npx playwright test --project=chrome",
+    "test:report": "npx playwright show-report reports/html-report"
+  },
+  "keywords": ["playwright", "automation", "testing", "e2e"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}
