@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       browsers:
-        description: "Browsers to run (chromium | all)"
+        description: "Browsers to run (all | chromium)"
         required: false
-        default: "chromium"
+        default: "all"
 
 jobs:
   test-and-deploy:
@@ -118,17 +118,18 @@ jobs:
           BASE_URL: http://localhost:3000
         continue-on-error: true
         run: |
-          BROWSERS_INPUT="${{ github.event.inputs.browsers }}"
-          if [ -z "${BROWSERS_INPUT}" ]; then
-            BROWSERS_INPUT="chromium"
+          # Push to main: run full cross-browser suite.
+          # Manual runs: allow overriding via input.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BROWSERS_INPUT="${{ github.event.inputs.browsers }}"
+          else
+            BROWSERS_INPUT="all"
           fi
 
-          if [ "${BROWSERS_INPUT}" = "all" ]; then
-            # Full cross-browser run (slow).
-            npx playwright test --workers=1
-          else
-            # Default: fast + stable Pages report.
+          if [ "${BROWSERS_INPUT}" = "chromium" ]; then
             npx playwright test --project=chromium --workers=1 --retries=0
+          else
+            npx playwright test --workers=1
           fi
 
       - name: Generate Allure report
