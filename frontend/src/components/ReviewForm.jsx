@@ -14,7 +14,9 @@ function ReviewForm({ productId, onReviewSubmitted, editingReview, onCancelEdit 
     const errs = {};
     if (!rating) errs.rating = 'Please select a rating';
     if (!title.trim()) errs.title = 'Title is required';
+    else if (title.trim().length < 3) errs.title = 'Title must be at least 3 characters';
     if (!comment.trim()) errs.comment = 'Comment is required';
+    else if (comment.trim().length < 10) errs.comment = 'Comment must be at least 10 characters';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -25,10 +27,20 @@ function ReviewForm({ productId, onReviewSubmitted, editingReview, onCancelEdit 
     setSubmitting(true);
     try {
       if (editingReview) {
-        await api.put(`/reviews/${editingReview._id}`, { rating, title, comment });
+        await api.put(`/reviews/${editingReview.id ?? editingReview._id}`, { rating, title, comment });
         toast.success('Review updated!');
       } else {
-        await api.post('/reviews', { productId, rating, title, comment });
+        const pid = parseInt(productId, 10);
+        if (Number.isNaN(pid) || pid < 1) {
+          toast.error('Invalid product');
+          return;
+        }
+        await api.post('/reviews', {
+          product_id: pid,
+          rating: Math.min(5, Math.max(1, Math.round(Number(rating)))),
+          title: title.trim(),
+          comment: comment.trim(),
+        });
         toast.success('Review submitted!');
       }
       setRating(0);
@@ -37,7 +49,9 @@ function ReviewForm({ productId, onReviewSubmitted, editingReview, onCancelEdit 
       setErrors({});
       onReviewSubmitted && onReviewSubmitted();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit review');
+      const apiErr = err.response?.data;
+      const first = apiErr?.data?.errors?.[0]?.message || apiErr?.message;
+      toast.error(first || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }

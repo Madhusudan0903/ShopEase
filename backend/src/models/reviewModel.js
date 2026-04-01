@@ -4,9 +4,10 @@ const ReviewModel = {
   async getByProductId(productId, page = 1, limit = 10) {
     const offset = (page - 1) * limit;
     const [rows] = await db.query(
-      `SELECT r.*, u.name as user_name
+      `SELECT r.*,
+              CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS user_name
        FROM reviews r
-       JOIN users u ON r.user_id = u.id
+       LEFT JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ?
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
@@ -79,9 +80,11 @@ const ReviewModel = {
   async getByUserId(userId, page = 1, limit = 10) {
     const offset = (page - 1) * limit;
     const [rows] = await db.query(
-      `SELECT r.*, p.name as product_name, p.image_url as product_image
+      `SELECT r.*, p.name as product_name, p.image_url as product_image,
+              CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS user_name
        FROM reviews r
        JOIN products p ON r.product_id = p.id
+       LEFT JOIN users u ON r.user_id = u.id
        WHERE r.user_id = ?
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
@@ -115,13 +118,9 @@ const ReviewModel = {
     };
   },
 
-  async updateProductRating(productId) {
-    const { averageRating, totalReviews } = await ReviewModel.getProductRating(productId);
-    await db.query(
-      'UPDATE products SET average_rating = ?, total_reviews = ?, updated_at = NOW() WHERE id = ?',
-      [averageRating, totalReviews, productId]
-    );
-  }
+  async updateProductRating(/* productId */) {
+    /* Optional denormalized columns not in base schema */
+  },
 };
 
 module.exports = ReviewModel;

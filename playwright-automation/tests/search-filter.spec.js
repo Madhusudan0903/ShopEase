@@ -2,115 +2,110 @@ const { test, expect } = require('@playwright/test');
 const ProductsPage = require('../pages/ProductsPage');
 const { getTestData } = require('../utils/test-data-helper');
 
-const productsData = getTestData('products');
+const products = getTestData('products');
 
 test.describe('Search and Filter', () => {
-  let productsPage;
-
   test.beforeEach(async ({ page }) => {
-    productsPage = new ProductsPage(page);
-    await productsPage.navigate();
+    const pp = new ProductsPage(page);
+    await pp.navigate();
   });
 
-  test('should search products by keyword and display results', async () => {
-    const keyword = productsData.searchKeywords[0];
-    await productsPage.searchProducts(keyword);
-
-    const count = await productsPage.getProductCount();
-    expect(count).toBeGreaterThan(0);
+  test('01 should search via navbar and show results heading', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.searchFromNavbar(products.searchKeywords[0]);
+    await expect(page.getByRole('heading', { name: /results for/i })).toBeVisible({ timeout: 15000 });
   });
 
-  test('should filter products by category', async () => {
-    const category = productsData.categories[0];
-    await productsPage.filterByCategory(category);
-
-    const count = await productsPage.getProductCount();
-    expect(count).toBeGreaterThanOrEqual(0);
+  test('02 should filter by Footwear category', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Footwear');
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should filter products by price range', async () => {
-    const range = productsData.priceRanges.medium;
-    await productsPage.filterByPriceRange(range.min, range.max);
-
-    const prices = await productsPage.getProductPrices();
-    for (const price of prices) {
-      expect(price).toBeGreaterThanOrEqual(range.min);
-      expect(price).toBeLessThanOrEqual(range.max);
-    }
+  test('03 should filter by price range min max', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.fillPriceRange(10, 100);
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should apply combined category and price filters', async () => {
-    const category = productsData.categories[0];
-    const range = productsData.priceRanges.medium;
-
-    await productsPage.filterByCategory(category);
-    await productsPage.filterByPriceRange(range.min, range.max);
-
-    const count = await productsPage.getProductCount();
-    expect(count).toBeGreaterThanOrEqual(0);
+  test('04 should combine category and brand text filter', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Clothing');
+    await pp.fillBrandFilter(products.brandSample);
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should clear all active filters', async () => {
-    const category = productsData.categories[0];
-    await productsPage.filterByCategory(category);
-    const filteredCount = await productsPage.getProductCount();
-
-    await productsPage.clearFilters();
-    const unfilteredCount = await productsPage.getProductCount();
-
-    expect(unfilteredCount).toBeGreaterThanOrEqual(filteredCount);
+  test('05 should clear all filters', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Electronics');
+    await pp.clearAllFilters();
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should display no results for non-existent search term', async () => {
-    await productsPage.searchProducts(productsData.invalidSearch);
-
-    const noResults = await productsPage.isNoResultsVisible();
-    const count = await productsPage.getProductCount();
-    expect(noResults || count === 0).toBeTruthy();
+  test('06 should show empty state for nonsense search', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.searchFromNavbar(products.invalidSearch);
+    await expect(page.locator('.results-count')).toContainText(/0\s+products found/i, { timeout: 20000 });
+    const emptyVisible = await page.locator('.products-empty').isVisible().catch(() => false);
+    const cardCount = await page.locator('.product-card').count();
+    expect(emptyVisible || cardCount === 0).toBeTruthy();
   });
 
-  test('should filter products by brand', async () => {
-    const brand = productsData.brands[0];
-    await productsPage.filterByBrand(brand);
-
-    const count = await productsPage.getProductCount();
-    expect(count).toBeGreaterThanOrEqual(0);
+  test('07 should filter by minimum rating 4 stars', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.clickMinRating(4);
+    await expect(page.locator('.products-page')).toBeVisible();
   });
 
-  test('should filter products by rating', async () => {
-    await productsPage.filterByRating(4);
-
-    const count = await productsPage.getProductCount();
-    expect(count).toBeGreaterThanOrEqual(0);
+  test('08 should filter by Accessories category', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Accessories');
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should search with multiple keywords', async () => {
-    const keyword = productsData.searchKeywords[1];
-    await productsPage.searchProducts(keyword);
-
-    const count = await productsPage.getProductCount();
-    const noResults = await productsPage.isNoResultsVisible();
-    expect(count > 0 || noResults).toBeTruthy();
+  test('09 should filter Home and Kitchen category', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Home & Kitchen');
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test('should persist filter state after sorting', async () => {
-    const category = productsData.categories[0];
-    await productsPage.filterByCategory(category);
-    const countBefore = await productsPage.getProductCount();
-
-    await productsPage.selectSort('price-low-high');
-    const countAfter = await productsPage.getProductCount();
-
-    expect(countAfter).toBe(countBefore);
+  test('10 should persist search in URL query', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.searchFromNavbar('book');
+    await expect(page).toHaveURL(/search=/);
   });
 
-  test('should filter by low price range', async () => {
-    const range = productsData.priceRanges.low;
-    await productsPage.filterByPriceRange(range.min, range.max);
+  test('11 should filter by Books category', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Books');
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
+  });
 
-    const prices = await productsPage.getProductPrices();
-    for (const price of prices) {
-      expect(price).toBeLessThanOrEqual(range.max);
-    }
+  test('12 should allow typing brand partial match', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.fillBrandFilter('Stride');
+    await expect(page.locator('.products-page')).toBeVisible();
+  });
+
+  test('13 should set high price floor and may show empty', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.fillPriceRange(50000, 100000);
+    await page.waitForTimeout(1000);
+    const empty = await page.locator('.products-empty').isVisible().catch(() => false);
+    const card = await page.locator('.product-card').first().isVisible().catch(() => false);
+    expect(empty || card).toBeTruthy();
+  });
+
+  test('14 should toggle same category off when clicked again', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.checkCategoryByName('Clothing');
+    await pp.uncheckCategoryByName('Clothing');
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('15 should sort by top rated', async ({ page }) => {
+    const pp = new ProductsPage(page);
+    await pp.selectSort(products.sortValues.rating);
+    await expect(page.locator('.product-card').first()).toBeVisible({ timeout: 15000 });
   });
 });

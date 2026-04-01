@@ -32,7 +32,8 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get('/auth/profile');
       if (data.success) {
-        setUser(data.data);
+        const payload = data.data;
+        setUser(payload?.user ?? payload);
       }
     } catch {
       logout();
@@ -58,7 +59,7 @@ export function AuthProvider({ children }) {
     if (data.success) {
       localStorage.setItem('token', data.data.token);
       setToken(data.data.token);
-      setUser(data.data.user || data.data);
+      setUser(data.data.user ?? data.data);
       toast.success('Welcome back!');
       navigate('/');
     }
@@ -66,11 +67,18 @@ export function AuthProvider({ children }) {
   }, [navigate]);
 
   const register = useCallback(async (formData) => {
-    const { data } = await api.post('/auth/register', formData);
+    const { firstName, lastName, email, password, phone } = formData;
+    const { data } = await api.post('/auth/register', {
+      first_name: firstName?.trim(),
+      last_name: lastName?.trim(),
+      email: email?.trim(),
+      password,
+      phone: phone?.replace(/\D/g, '').slice(0, 10) || undefined,
+    });
     if (data.success) {
       localStorage.setItem('token', data.data.token);
       setToken(data.data.token);
-      setUser(data.data.user || data.data);
+      setUser(data.data.user ?? data.data);
       toast.success('Account created successfully!');
       navigate('/');
     }
@@ -78,9 +86,15 @@ export function AuthProvider({ children }) {
   }, [navigate]);
 
   const updateProfile = useCallback(async (formData) => {
-    const { data } = await api.put('/auth/profile', formData);
+    const { firstName, lastName, phone } = formData;
+    const { data } = await api.put('/auth/profile', {
+      first_name: firstName?.trim(),
+      last_name: lastName?.trim(),
+      phone: phone?.replace(/\D/g, '').slice(0, 10) || undefined,
+    });
     if (data.success) {
-      setUser(data.data);
+      const payload = data.data;
+      setUser(payload?.user ?? payload);
       toast.success('Profile updated!');
     }
     return data;

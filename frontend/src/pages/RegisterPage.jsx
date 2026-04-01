@@ -23,7 +23,10 @@ function RegisterPage() {
     if (!form.email.trim()) errs.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Enter a valid email';
     if (!form.password) errs.password = 'Password is required';
-    else if (form.password.length < 6) errs.password = 'Password must be at least 6 characters';
+    else if (form.password.length < 8) errs.password = 'Password must be at least 8 characters';
+    else if (!/[a-z]/.test(form.password)) errs.password = 'Password must include a lowercase letter';
+    else if (!/[A-Z]/.test(form.password)) errs.password = 'Password must include an uppercase letter';
+    else if (!/[0-9]/.test(form.password)) errs.password = 'Password must include a number';
     if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
     if (form.phone && !/^\d{10}$/.test(form.phone)) errs.phone = 'Enter a valid 10-digit phone number';
     setErrors(errs);
@@ -38,7 +41,12 @@ function RegisterPage() {
       const { confirmPassword, ...data } = form;
       await register(data);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      const apiErrors = err.response?.data?.data?.errors;
+      if (Array.isArray(apiErrors) && apiErrors.length) {
+        toast.error(apiErrors.map((e) => e.message).join(' · '));
+      } else {
+        toast.error(err.response?.data?.message || 'Registration failed');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +126,7 @@ function RegisterPage() {
                 type="password"
                 name="password"
                 className={`form-input${errors.password ? ' error' : ''}`}
-                placeholder="Min. 6 characters"
+                placeholder="8+ chars, upper, lower, number"
                 value={form.password}
                 onChange={handleChange}
               />

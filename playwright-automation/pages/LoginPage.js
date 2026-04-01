@@ -1,15 +1,12 @@
 const BasePage = require('./BasePage');
+const { getToastText, getFormErrors } = require('../utils/playwright-helpers');
 
 class LoginPage extends BasePage {
   constructor(page) {
     super(page);
-    this.emailInput = 'input[name="email"], input[type="email"], [data-testid="email-input"]';
-    this.passwordInput = 'input[name="password"], input[type="password"], [data-testid="password-input"]';
-    this.loginButton = 'button[type="submit"], [data-testid="login-button"]';
-    this.errorMessage = '.error-message, .alert-danger, [data-testid="error-message"], .error';
-    this.registerLink = 'a[href="/register"], [data-testid="register-link"]';
-    this.logoutButton = '[data-testid="logout-button"], .logout-btn, button:has-text("Logout")';
-    this.userMenu = '[data-testid="user-menu"], .user-menu, .profile-menu';
+    this.emailInput = 'input[name="email"]';
+    this.passwordInput = 'input[name="password"]';
+    this.submitButton = 'button[type="submit"]';
   }
 
   async navigate() {
@@ -25,17 +22,8 @@ class LoginPage extends BasePage {
   }
 
   async clickLogin() {
-    await this.page.locator(this.loginButton).click();
-    await this.page.waitForLoadState('domcontentloaded');
-  }
-
-  async getErrorMessage() {
-    const errorLocator = this.page.locator(this.errorMessage);
-    await errorLocator.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    if (await errorLocator.isVisible()) {
-      return await errorLocator.textContent();
-    }
-    return null;
+    await this.page.locator(this.submitButton).click();
+    await this.page.waitForTimeout(500);
   }
 
   async login(email, password) {
@@ -44,26 +32,26 @@ class LoginPage extends BasePage {
     await this.clickLogin();
   }
 
+  /** Client-side .form-error or API failure toast */
+  async getErrorMessage() {
+    const fe = await getFormErrors(this.page);
+    if (fe.length) return fe[0];
+    const toast = await getToastText(this.page, { errorOnly: true });
+    return toast || null;
+  }
+
   async isLoggedIn() {
-    try {
-      await this.page.locator(this.userMenu).waitFor({ state: 'visible', timeout: 5000 });
-      return true;
-    } catch {
-      return false;
-    }
+    return this.page.locator('.navbar-user-dropdown').isVisible().catch(() => false);
   }
 
   async logout() {
-    const userMenu = this.page.locator(this.userMenu);
-    if (await userMenu.isVisible().catch(() => false)) {
-      await userMenu.click();
-    }
-    await this.page.locator(this.logoutButton).click();
-    await this.waitForLoad();
+    await this.page.locator('.navbar-user-dropdown button').first().click();
+    await this.page.getByRole('button', { name: /logout/i }).click();
+    await this.page.waitForTimeout(800);
   }
 
   async clickRegisterLink() {
-    await this.page.locator(this.registerLink).click();
+    await this.page.locator('a[href="/register"]').click();
     await this.waitForLoad();
   }
 }

@@ -13,19 +13,23 @@ export function CartProvider({ children }) {
   const fetchCart = useCallback(async () => {
     if (!isAuthenticated) {
       setCartItems([]);
-      return;
+      return [];
     }
     setLoading(true);
     try {
       const { data } = await api.get('/cart');
       if (data.success) {
-        setCartItems(data.data || []);
+        const payload = data.data;
+        const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
+        setCartItems(items);
+        return items;
       }
     } catch {
       setCartItems([]);
     } finally {
       setLoading(false);
     }
+    return [];
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export function CartProvider({ children }) {
 
   const addToCart = useCallback(async (productId, quantity = 1) => {
     try {
-      const { data } = await api.post('/cart', { productId, quantity });
+      const { data } = await api.post('/cart', { product_id: productId, quantity });
       if (data.success) {
         await fetchCart();
         toast.success('Added to cart!');
@@ -86,6 +90,11 @@ export function CartProvider({ children }) {
     }
   }, []);
 
+  /** Clear UI only — use after checkout: the server already emptied the cart when the order was created. */
+  const clearCartLocal = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const cartTotal = cartItems.reduce(
     (sum, item) => sum + (item.product?.price || item.price || 0) * (item.quantity || 0),
@@ -102,6 +111,7 @@ export function CartProvider({ children }) {
     updateQuantity,
     removeItem,
     clearCart,
+    clearCartLocal,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

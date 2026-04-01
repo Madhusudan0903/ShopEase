@@ -1,31 +1,34 @@
 import { FiCheck, FiPackage, FiTruck, FiMapPin, FiCheckCircle } from 'react-icons/fi';
 
 const STEPS = [
-  { key: 'Pending', label: 'Placed', icon: FiCheck },
-  { key: 'Confirmed', label: 'Confirmed', icon: FiPackage },
-  { key: 'Shipped', label: 'Shipped', icon: FiTruck },
-  { key: 'Out for Delivery', label: 'Out for Delivery', icon: FiMapPin },
-  { key: 'Delivered', label: 'Delivered', icon: FiCheckCircle },
+  { key: 'placed', label: 'Placed', icon: FiCheck },
+  { key: 'confirmed', label: 'Confirmed', icon: FiPackage },
+  { key: 'shipped', label: 'Shipped', icon: FiTruck },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: FiMapPin },
+  { key: 'delivered', label: 'Delivered', icon: FiCheckCircle },
 ];
 
-function OrderStatusTracker({ status, statusHistory = [] }) {
-  const currentIndex = STEPS.findIndex(
-    (s) => s.key.toLowerCase() === status?.toLowerCase()
-  );
+function normalizeStatus(s) {
+  return String(s || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_');
+}
 
-  const isCancelled = status?.toLowerCase() === 'cancelled';
+function OrderStatusTracker({ status, statusHistory = [] }) {
+  const norm = normalizeStatus(status);
+  const currentIndex = STEPS.findIndex((s) => s.key === norm);
+
+  const isCancelled = norm === 'cancelled';
 
   const getDate = (stepKey) => {
-    const entry = statusHistory.find(
-      (h) => h.status?.toLowerCase() === stepKey.toLowerCase()
-    );
-    if (entry?.date) {
-      return new Date(entry.date).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-      });
-    }
-    return '';
+    const entry = statusHistory.find((h) => normalizeStatus(h.status) === stepKey);
+    const raw = entry?.created_at || entry?.date;
+    if (!raw) return '';
+    return new Date(raw).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+    });
   };
 
   if (isCancelled) {

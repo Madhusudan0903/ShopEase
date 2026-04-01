@@ -1,0 +1,81 @@
+# Publishes the Allure report to GitHub Pages after Playwright E2E tests.
+#
+# Setup:
+# 1. Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions"
+# 2. Repo → Settings → Secrets and variables → Actions → Variables:
+#    - E2E_BASE_URL: public URL where the shopping app is running (required for tests in CI)
+#
+# Triggers:
+# - workflow_dispatch: run manually from the Actions tab
+# - push (optional): uncomment the "on.push" block below if you want automatic runs on main
+
+name: Allure report → GitHub Pages
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: allure-github-pages
+  cancel-in-progress: false
+
+jobs:
+  build-allure:
+    name: Run tests and build Allure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: playwright-automation/package-lock.json
+
+      - name: Install dependencies
+        working-directory: playwright-automation
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: playwright-automation
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run Playwright tests
+        working-directory: playwright-automation
+        env:
+          CI: true
+          BASE_URL: ${{ vars.E2E_BASE_URL }}
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Generate Allure report
+        if: always()
+        working-directory: playwright-automation
+        run: npx allure generate allure-results -o allure-report --clean
+
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-automation/allure-report
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build-allure
+    if: needs.build-allure.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

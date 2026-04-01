@@ -5,15 +5,27 @@ import api from '../api/axios';
 import Loading from '../components/Loading';
 
 function getStatusBadgeClass(status) {
+  const s = String(status || '').toLowerCase().replace(/\s+/g, '_');
   const map = {
+    placed: 'badge-info',
     pending: 'badge-warning',
     confirmed: 'badge-info',
     shipped: 'badge-info',
-    'out for delivery': 'badge-primary',
+    out_for_delivery: 'badge-primary',
     delivered: 'badge-success',
     cancelled: 'badge-danger',
+    completed: 'badge-success',
   };
-  return map[status?.toLowerCase()] || 'badge-info';
+  return map[s] || 'badge-info';
+}
+
+function formatOrderStatus(row) {
+  return (
+    row.fulfillment_status ||
+    row.status ||
+    row.payment_status ||
+    'placed'
+  );
 }
 
 function OrdersPage() {
@@ -24,7 +36,11 @@ function OrdersPage() {
     const fetchOrders = async () => {
       try {
         const { data } = await api.get('/orders/my-orders');
-        if (data.success) setOrders(data.data || []);
+        if (data.success) {
+          const payload = data.data;
+          const list = Array.isArray(payload) ? payload : (payload?.orders ?? []);
+          setOrders(list);
+        }
       } catch {
         setOrders([]);
       } finally {
@@ -50,43 +66,51 @@ function OrdersPage() {
           </div>
         ) : (
           <div className="orders-list">
-            {orders.map((order) => (
-              <div key={order._id} className="order-card">
-                <div className="order-card-header">
-                  <div>
-                    <span className="order-card-id">
-                      Order #{order.orderNumber || order._id?.slice(-8).toUpperCase()}
-                    </span>
-                    <span className="order-card-date" style={{ marginLeft: '12px' }}>
-                      {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                  <span className={`badge ${getStatusBadgeClass(order.status || order.orderStatus)}`}>
-                    {order.status || order.orderStatus}
-                  </span>
-                </div>
+            {orders.map((order) => {
+              const oid = order.id ?? order._id;
+              const created = order.created_at ?? order.createdAt;
+              const total = order.total_amount ?? order.totalAmount ?? order.total ?? 0;
+              const status = formatOrderStatus(order);
+              const itemCount = order.item_count ?? order.items?.length ?? 0;
 
-                <div className="order-card-body">
-                  <div>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      {order.items?.length || order.orderItems?.length || 0} item(s)
+              return (
+                <div key={oid} className="order-card">
+                  <div className="order-card-header">
+                    <div>
+                      <span className="order-card-id">Order #{oid}</span>
+                      <span className="order-card-date" style={{ marginLeft: '12px' }}>
+                        {created
+                          ? new Date(created).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : ''}
+                      </span>
+                    </div>
+                    <span className={`badge ${getStatusBadgeClass(status)}`}>
+                      {String(status).replace(/_/g, ' ')}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span className="order-card-total">
-                      ₹{(order.totalAmount || order.total || 0).toLocaleString('en-IN')}
-                    </span>
-                    <Link to={`/orders/${order._id}`} className="btn btn-outline btn-sm">
-                      <FiEye size={14} /> View Details
-                    </Link>
+
+                  <div className="order-card-body">
+                    <div>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {itemCount} item(s)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <span className="order-card-total">
+                        ₹{Number(total).toLocaleString('en-IN')}
+                      </span>
+                      <Link to={`/orders/${oid}`} className="btn btn-outline btn-sm">
+                        <FiEye size={14} /> View Details
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

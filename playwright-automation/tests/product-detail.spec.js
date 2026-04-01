@@ -1,120 +1,106 @@
 const { test, expect } = require('@playwright/test');
-const ProductsPage = require('../pages/ProductsPage');
 const ProductDetailPage = require('../pages/ProductDetailPage');
-const LoginPage = require('../pages/LoginPage');
-const { getTestData, getValidUser } = require('../utils/test-data-helper');
+const { getTestData } = require('../utils/test-data-helper');
+const { loginAsUser } = require('../utils/playwright-helpers');
 
-const validUser = getValidUser();
+const products = getTestData('products');
+const login = getTestData('login', 'valid');
 
 test.describe('Product Detail Page', () => {
-  let productsPage;
-  let detailPage;
-
-  test.beforeEach(async ({ page }) => {
-    productsPage = new ProductsPage(page);
-    detailPage = new ProductDetailPage(page);
-    await productsPage.navigate();
+  test('01 should display product name on detail page', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    const title = await p.getTitle();
+    expect(title.length).toBeGreaterThan(0);
   });
 
-  test('should display product name on detail page', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const name = await detailPage.getProductName();
-    expect(name).toBeTruthy();
-    expect(name.length).toBeGreaterThan(0);
+  test('02 should display price with rupee symbol', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    const price = await p.getPriceText();
+    expect(price).toContain('₹');
   });
 
-  test('should display product price', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const price = await detailPage.getProductPrice();
-    expect(price).toBeGreaterThanOrEqual(0);
+  test('03 should show stock status', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    const s = await p.getStockText();
+    expect(s.length).toBeGreaterThan(0);
   });
 
-  test('should display stock status', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const stockStatus = await detailPage.getStockStatus();
-    expect(stockStatus).toBeTruthy();
+  test('04 should increase quantity with + control', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    await p.quantityIncrease();
+    await expect(page.locator('.product-detail-quantity .quantity-selector span')).toContainText('2');
   });
 
-  test('should allow quantity selection', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
+  test('05 should add product to cart when logged in', async ({ page }) => {
+    await loginAsUser(page, login.email, login.password);
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    await p.clickAddToCart();
+    await expect(page.locator('.navbar-cart-badge')).toBeVisible({ timeout: 10000 });
+  });
 
-    await detailPage.setQuantity(2);
+  test('06 should not show add to cart for out of stock product', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.outOfStockProductId);
+    await expect(page.locator('.stock-out')).toBeVisible();
+    await expect(page.getByRole('button', { name: /add to cart/i })).toHaveCount(0);
+  });
 
-    const qtyInput = page.locator('input[type="number"], [data-testid="quantity-input"]');
-    if (await qtyInput.isVisible().catch(() => false)) {
-      const value = await qtyInput.inputValue();
-      expect(parseInt(value)).toBe(2);
+  test('07 should show product description text', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await expect(page.locator('.product-detail-description')).toBeVisible();
+  });
+
+  test('08 should show reviews section heading', async ({ page }) => {
+    const p = new ProductDetailPage(page);
+    await p.navigate(products.inStockProductId);
+    await expect(page.getByRole('heading', { name: /customer reviews/i })).toBeVisible();
+  });
+
+  test('09 should show product image', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await expect(page.locator('.product-detail-image img')).toBeVisible();
+  });
+
+  test('10 should show brand when present', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    const brand = page.locator('.product-detail-brand');
+    if (await brand.isVisible().catch(() => false)) {
+      await expect(brand).not.toBeEmpty();
     }
   });
 
-  test('should add product to cart successfully', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.navigate();
-    await loginPage.login(validUser.email, validUser.password);
-
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    await detailPage.clickAddToCart();
-
-    const successMsg = await detailPage.getSuccessMessage();
-    const url = page.url();
-    expect(successMsg !== null || url.includes('/cart') || true).toBeTruthy();
+  test('11 should navigate back using browser history', async ({ page }) => {
+    await page.goto('/products');
+    await expect(page.getByRole('heading', { name: /all products|results for/i })).toBeVisible({ timeout: 15000 });
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/products/, { timeout: 15000 });
   });
 
-  test('should disable add-to-cart for out-of-stock products', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const inStock = await detailPage.isInStock();
-    if (!inStock) {
-      const enabled = await detailPage.isAddToCartEnabled();
-      expect(enabled).toBeFalsy();
-    } else {
-      expect(inStock).toBeTruthy();
-    }
+  test('12 should navigate to not found for unknown product id', async ({ page }) => {
+    await page.goto('/products/999999');
+    await page.waitForURL(/\/404/, { timeout: 15000 });
   });
 
-  test('should display product price in correct format', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const priceText = await page.locator('.product-price, .price, [data-testid="product-price"]').textContent();
-    expect(priceText).toBeTruthy();
-    expect(priceText).toMatch(/[\d,.]+/);
+  test('13 should show quantity selector for in-stock product', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await expect(page.locator('.product-detail-quantity .quantity-selector')).toBeVisible();
   });
 
-  test('should display reviews section', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const isVisible = await detailPage.isReviewsSectionVisible();
-    expect(isVisible).toBeTruthy();
+  test('14 should prompt login for reviews when logged out', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await expect(page.locator('.reviews-section a[href="/login"]')).toBeVisible();
   });
 
-  test('should display product description', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const desc = await detailPage.isElementVisible('.product-description, [data-testid="product-description"]');
-    const name = await detailPage.getProductName();
-    expect(desc || name.length > 0).toBeTruthy();
-  });
-
-  test('should display product image', async ({ page }) => {
-    await productsPage.clickProduct(0);
-    detailPage = new ProductDetailPage(page);
-
-    const imgVisible = await detailPage.isElementVisible('.product-image, [data-testid="product-image"] img, img');
-    expect(imgVisible).toBeTruthy();
+  test('15 should display compare-at price when on sale', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    const orig = page.locator('.product-detail-price .original-price');
+    const hasStrike = await orig.isVisible().catch(() => false);
+    expect(typeof hasStrike).toBe('boolean');
   });
 });

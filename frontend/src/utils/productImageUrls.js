@@ -1,0 +1,143 @@
+/**
+ * Curated, product-relevant images (Unsplash — free to use per Unsplash license).
+ * Keys match seed SKUs in database/seed-data.sql and product insert order (ids 1–30).
+ */
+export const PRODUCT_IMAGE_BY_SKU = {
+  'CLT-TEE-001':
+    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&h=800&q=85',
+  'CLT-JNS-002':
+    'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=800&h=800&q=85',
+  'CLT-HDI-003':
+    'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&h=800&q=85',
+  'CLT-SHR-004':
+    'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&h=800&q=85',
+  'CLT-DRS-005':
+    'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-EBD-001':
+    'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-PWB-002':
+    'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-WCM-003':
+    'https://images.unsplash.com/photo-1587825140708-dfaf36ae4b04?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-KBD-004':
+    'https://images.unsplash.com/photo-1587829741301-dfce9807398a?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-FIT-005':
+    'https://images.unsplash.com/photo-1575311373-354091eadd16?auto=format&fit=crop&w=800&h=800&q=85',
+  'ELC-DOC-006':
+    'https://images.unsplash.com/photo-1625948515291-69613e3f2b61?auto=format&fit=crop&w=800&h=800&q=85',
+  'FTW-RUN-001':
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&h=800&q=85',
+  'FTW-CHB-002':
+    'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&h=800&q=85',
+  'FTW-CNV-003':
+    'https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=800&h=800&q=85',
+  'FTW-SND-004':
+    'https://images.unsplash.com/photo-1603487747321-0f943b571627?auto=format&fit=crop&w=800&h=800&q=85',
+  'FTW-BSK-005':
+    'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?auto=format&fit=crop&w=800&h=800&q=85',
+  'ACC-WCH-001':
+    'https://images.unsplash.com/photo-1524592094714-0f0654df2032?auto=format&fit=crop&w=800&h=800&q=85',
+  'ACC-WLT-002':
+    'https://images.unsplash.com/photo-1627123422854-54171e387166?auto=format&fit=crop&w=800&h=800&q=85',
+  'ACC-SNG-003':
+    'https://images.unsplash.com/photo-1572635196233-15c0428dce29?auto=format&fit=crop&w=800&h=800&q=85',
+  'ACC-BPK-004':
+    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&h=800&q=85',
+  'ACC-NKL-005':
+    'https://images.unsplash.com/photo-1515562141207-7e88ddb14c4b?auto=format&fit=crop&w=800&h=800&q=85',
+  'HMK-CKW-001':
+    'https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=800&h=800&q=85',
+  'HMK-PLW-002':
+    'https://images.unsplash.com/photo-1584100936591-c59d0a4e3e5e?auto=format&fit=crop&w=800&h=800&q=85',
+  'HMK-VAC-003':
+    'https://images.unsplash.com/photo-1558317374-067fb8d3ccb3?auto=format&fit=crop&w=800&h=800&q=85',
+  'HMK-CTB-004':
+    'https://images.unsplash.com/photo-1604909052743-94e838986260?auto=format&fit=crop&w=800&h=800&q=85',
+  'HMK-DIF-005':
+    'https://images.unsplash.com/photo-1608571423902-eed4a2ed0600?auto=format&fit=crop&w=800&h=800&q=85',
+  'BKS-DEV-001':
+    'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&h=800&q=85',
+  'BKS-SEL-002':
+    'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=800&h=800&q=85',
+  'BKS-FIC-003':
+    'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&w=800&h=800&q=85',
+  'BKS-ACA-004':
+    'https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=800&h=800&q=85',
+  'BKS-NFC-005':
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&h=800&q=85',
+};
+
+/** Same seed order as database/seed-data.sql — for cart rows keyed by product_id only */
+export const PRODUCT_IMAGE_BY_ID = Object.fromEntries(
+  [
+    'CLT-TEE-001',
+    'CLT-JNS-002',
+    'CLT-HDI-003',
+    'CLT-SHR-004',
+    'CLT-DRS-005',
+    'ELC-EBD-001',
+    'ELC-PWB-002',
+    'ELC-WCM-003',
+    'ELC-KBD-004',
+    'ELC-FIT-005',
+    'ELC-DOC-006',
+    'FTW-RUN-001',
+    'FTW-CHB-002',
+    'FTW-CNV-003',
+    'FTW-SND-004',
+    'FTW-BSK-005',
+    'ACC-WCH-001',
+    'ACC-WLT-002',
+    'ACC-SNG-003',
+    'ACC-BPK-004',
+    'ACC-NKL-005',
+    'HMK-CKW-001',
+    'HMK-PLW-002',
+    'HMK-VAC-003',
+    'HMK-CTB-004',
+    'HMK-DIF-005',
+    'BKS-DEV-001',
+    'BKS-SEL-002',
+    'BKS-FIC-003',
+    'BKS-ACA-004',
+    'BKS-NFC-005',
+  ].map((sku, i) => [i + 1, PRODUCT_IMAGE_BY_SKU[sku]])
+);
+
+const SKU_ROTATION = [
+  'CLT-TEE-001',
+  'CLT-JNS-002',
+  'CLT-HDI-003',
+  'CLT-SHR-004',
+  'CLT-DRS-005',
+  'ELC-EBD-001',
+  'ELC-PWB-002',
+  'ELC-WCM-003',
+  'ELC-KBD-004',
+  'ELC-FIT-005',
+  'ELC-DOC-006',
+  'FTW-RUN-001',
+  'FTW-CHB-002',
+  'FTW-CNV-003',
+  'FTW-SND-004',
+  'FTW-BSK-005',
+  'ACC-WCH-001',
+  'ACC-WLT-002',
+  'ACC-SNG-003',
+  'ACC-BPK-004',
+  'ACC-NKL-005',
+  'HMK-CKW-001',
+  'HMK-PLW-002',
+  'HMK-VAC-003',
+  'HMK-CTB-004',
+  'HMK-DIF-005',
+  'BKS-DEV-001',
+  'BKS-SEL-002',
+  'BKS-FIC-003',
+  'BKS-ACA-004',
+  'BKS-NFC-005',
+];
+for (let id = 31; id <= 120; id += 1) {
+  const sku = SKU_ROTATION[(id - 1) % SKU_ROTATION.length];
+  PRODUCT_IMAGE_BY_ID[id] = PRODUCT_IMAGE_BY_SKU[sku];
+}

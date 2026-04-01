@@ -32,7 +32,10 @@ function ProfilePage() {
     const fetchReviews = async () => {
       try {
         const { data } = await api.get('/reviews/my-reviews');
-        if (data.success) setReviews(data.data || []);
+        if (data.success) {
+          const payload = data.data;
+          setReviews(Array.isArray(payload) ? payload : (payload?.reviews ?? []));
+        }
       } catch {
         setReviews([]);
       } finally {

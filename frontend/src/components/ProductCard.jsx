@@ -4,6 +4,8 @@ import StarRating from './StarRating';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getProductImageUrl, PLACEHOLDER_SVG } from '../utils/productImage';
+import { formatInr } from '../utils/formatInr';
 
 function ProductCard({ product }) {
   const { addToCart } = useCart();
@@ -12,21 +14,30 @@ function ProductCard({ product }) {
 
   const {
     _id,
+    id,
     name,
     brand,
     price,
     compare_at_price,
-    images,
     rating,
+    average_rating,
     numReviews,
+    total_reviews,
+    review_count,
     stock,
+    stock_quantity,
   } = product;
+
+  const productId = _id ?? id;
+  const stockCount = stock ?? stock_quantity ?? 0;
+  const displayRating = Number(rating ?? average_rating ?? 0) || 0;
+  const reviewTotal = Number(review_count ?? numReviews ?? total_reviews ?? 0) || 0;
 
   const discount = compare_at_price && compare_at_price > price
     ? Math.round(((compare_at_price - price) / compare_at_price) * 100)
     : 0;
 
-  const imageUrl = images?.[0] || '/placeholder.png';
+  const imageUrl = getProductImageUrl(product);
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -36,18 +47,24 @@ function ProductCard({ product }) {
       return;
     }
     try {
-      await addToCart(_id, 1);
+      await addToCart(productId, 1);
     } catch {
       // handled by context
     }
   };
 
-  const inStock = stock > 0;
+  const inStock = stockCount > 0;
 
   return (
-    <Link to={`/products/${_id}`} className="product-card">
+    <Link to={`/products/${productId}`} className="product-card">
       <div className="product-card-image">
-        <img src={imageUrl} alt={name} />
+        <img
+          src={imageUrl}
+          alt={name}
+          onError={(e) => {
+            e.currentTarget.src = PLACEHOLDER_SVG;
+          }}
+        />
         {discount > 0 && (
           <span className="product-card-discount">-{discount}%</span>
         )}
@@ -56,13 +73,16 @@ function ProductCard({ product }) {
         {brand && <p className="product-card-brand">{brand}</p>}
         <h3 className="product-card-name">{name}</h3>
         <div className="product-card-rating">
-          <StarRating rating={rating || 0} size={14} />
-          <span>({numReviews || 0})</span>
+          <StarRating rating={displayRating} size={14} />
+          <span className="product-card-review-count">
+            {displayRating > 0 ? `${displayRating.toFixed(1)} · ` : ''}
+            {reviewTotal} {reviewTotal === 1 ? 'review' : 'reviews'}
+          </span>
         </div>
         <div className="product-card-price">
-          <span className="current-price">₹{price?.toLocaleString('en-IN')}</span>
-          {compare_at_price > price && (
-            <span className="original-price">₹{compare_at_price?.toLocaleString('en-IN')}</span>
+          <span className="current-price">₹{formatInr(price)}</span>
+          {Number(compare_at_price) > Number(price) && (
+            <span className="original-price">₹{formatInr(compare_at_price)}</span>
           )}
         </div>
         <div className="product-card-actions">

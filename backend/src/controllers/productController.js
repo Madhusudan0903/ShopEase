@@ -5,6 +5,23 @@ const { formatResponse } = require('../utils/helpers');
 const productController = {
   async getAllProducts(req, res, next) {
     try {
+      const sortMap = {
+        price: 'price_asc',
+        '-price': 'price_desc',
+        name: 'name_asc',
+        '-name': 'name_desc',
+        '-createdAt': 'newest',
+        createdAt: 'oldest',
+        '-rating': 'rating',
+        rating: 'rating',
+        popularity: 'popularity',
+      };
+
+      let sort = req.query.sort;
+      if (sort && sortMap[sort]) {
+        sort = sortMap[sort];
+      }
+
       const filters = {
         category: req.query.category,
         minPrice: req.query.minPrice ? parseFloat(req.query.minPrice) : undefined,
@@ -12,9 +29,9 @@ const productController = {
         brand: req.query.brand,
         minRating: req.query.minRating ? parseFloat(req.query.minRating) : undefined,
         search: req.query.search,
-        sort: req.query.sort,
+        sort,
         page: req.query.page,
-        limit: req.query.limit
+        limit: req.query.limit,
       };
 
       const result = await ProductModel.getAll(filters);

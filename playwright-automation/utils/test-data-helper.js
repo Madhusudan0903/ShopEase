@@ -1,12 +1,12 @@
 const testData = require('../fixtures/test-data.json');
 const usersData = require('../fixtures/users.json');
 
-function getTestData(module, type = 'valid') {
+function getTestData(module, type) {
   const moduleData = testData[module];
   if (!moduleData) {
     throw new Error(`No test data found for module: ${module}`);
   }
-  if (type && moduleData[type] !== undefined) {
+  if (type !== undefined && moduleData[type] !== undefined) {
     return moduleData[type];
   }
   return moduleData;

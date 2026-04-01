@@ -3,110 +3,55 @@ const BasePage = require('./BasePage');
 class ProductDetailPage extends BasePage {
   constructor(page) {
     super(page);
-    this.productName = '.product-name, h1, [data-testid="product-name"]';
-    this.productPrice = '.product-price, .price, [data-testid="product-price"]';
-    this.stockStatus = '.stock-status, [data-testid="stock-status"]';
-    this.quantityInput = 'input[name="quantity"], input[type="number"], [data-testid="quantity-input"]';
-    this.quantityIncrease = '[data-testid="quantity-increase"], .qty-increase, button:has-text("+")';
-    this.quantityDecrease = '[data-testid="quantity-decrease"], .qty-decrease, button:has-text("-")';
-    this.addToCartButton = '[data-testid="add-to-cart"], .add-to-cart, button:has-text("Add to Cart")';
-    this.reviewsSection = '.reviews-section, [data-testid="reviews-section"], .reviews';
-    this.reviewCards = '.review-card, [data-testid="review-card"], .review-item';
-    this.ratingInput = '[data-testid="rating-input"], .rating-input, .star-rating';
-    this.reviewTitleInput = 'input[name="reviewTitle"], [data-testid="review-title-input"]';
-    this.reviewCommentInput = 'textarea[name="reviewComment"], [data-testid="review-comment-input"]';
-    this.submitReviewButton = '[data-testid="submit-review"], button:has-text("Submit Review")';
-    this.productImage = '.product-image, [data-testid="product-image"] img';
-    this.productDescription = '.product-description, [data-testid="product-description"]';
-    this.successMessage = '.success-message, [data-testid="success-message"], .alert-success';
   }
 
   async navigate(id) {
     await super.navigate(`/products/${id}`);
+    await this.page.locator('.product-detail').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
   }
 
-  async getProductName() {
-    return await this.getText(this.productName);
+  async getTitle() {
+    return (await this.page.locator('.product-detail-info h1').textContent())?.trim() || '';
   }
 
-  async getProductPrice() {
-    const priceText = await this.getText(this.productPrice);
-    const match = priceText.match(/[\d,.]+/);
-    return match ? parseFloat(match[0].replace(',', '')) : 0;
+  async getPriceText() {
+    return (await this.page.locator('.product-detail-price .current-price').first().textContent())?.trim() || '';
   }
 
-  async getStockStatus() {
-    return await this.getText(this.stockStatus);
-  }
-
-  async isInStock() {
-    const status = await this.getStockStatus();
-    return status.toLowerCase().includes('in stock');
-  }
-
-  async setQuantity(qty) {
-    const input = this.page.locator(this.quantityInput);
-    if (await input.isVisible().catch(() => false)) {
-      await input.clear();
-      await input.fill(String(qty));
-    } else {
-      for (let i = 1; i < qty; i++) {
-        await this.page.locator(this.quantityIncrease).click();
-      }
-    }
+  async getStockText() {
+    return (await this.page.locator('.product-detail-stock').textContent())?.trim() || '';
   }
 
   async clickAddToCart() {
-    await this.page.locator(this.addToCartButton).click();
-    await this.page.waitForTimeout(500);
+    await this.page.getByRole('button', { name: /add to cart/i }).click();
+    await this.page.waitForTimeout(800);
   }
 
-  async isAddToCartEnabled() {
-    return await this.page.locator(this.addToCartButton).isEnabled();
+  async quantityIncrease() {
+    await this.page.locator('.product-detail-quantity .quantity-selector button').nth(1).click();
+    await this.page.waitForTimeout(400);
   }
 
-  async getReviews() {
-    const reviews = [];
-    const count = await this.page.locator(this.reviewCards).count();
-    for (let i = 0; i < count; i++) {
-      const card = this.page.locator(this.reviewCards).nth(i);
-      reviews.push({
-        text: await card.textContent(),
-      });
-    }
-    return reviews;
+  async isAddToCartDisabled() {
+    return this.page.getByRole('button', { name: /add to cart/i }).isDisabled();
   }
 
-  async submitReview(rating, title, comment) {
-    const starSelector = `.star-rating [data-value="${rating}"], .rating-input star:nth-child(${rating}), [data-testid="star-${rating}"]`;
-    await this.page.locator(starSelector).click().catch(async () => {
-      const ratingLocator = this.page.locator(this.ratingInput);
-      if (await ratingLocator.isVisible()) {
-        await ratingLocator.fill(String(rating));
-      }
-    });
-
-    await this.fillInput(this.reviewTitleInput, title);
-    await this.fillInput(this.reviewCommentInput, comment);
-    await this.page.locator(this.submitReviewButton).click();
-    await this.page.waitForTimeout(1000);
+  async hasReviewsHeading() {
+    return this.page.getByRole('heading', { name: /reviews/i }).first().isVisible().catch(() => false);
   }
 
-  async getReviewCount() {
-    return await this.page.locator(this.reviewCards).count();
+  async setStarRating(starIndex1To5) {
+    await this.page.locator('.review-form .star-rating svg').nth(starIndex1To5 - 1).click();
   }
 
-  async isReviewsSectionVisible() {
-    return await this.isElementVisible(this.reviewsSection);
+  async fillReview(title, comment) {
+    await this.page.locator('.review-form input.form-input').fill(title);
+    await this.page.locator('.review-form textarea.form-textarea').fill(comment);
   }
 
-  async getSuccessMessage() {
-    const msg = this.page.locator(this.successMessage);
-    await msg.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    if (await msg.isVisible()) {
-      return await msg.textContent();
-    }
-    return null;
+  async submitReview() {
+    await this.page.locator('.review-form button[type="submit"]').click();
+    await this.page.waitForTimeout(1200);
   }
 }
 

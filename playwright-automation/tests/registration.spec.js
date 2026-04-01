@@ -1,123 +1,173 @@
 const { test, expect } = require('@playwright/test');
 const RegisterPage = require('../pages/RegisterPage');
-const LoginPage = require('../pages/LoginPage');
 const { getTestData } = require('../utils/test-data-helper');
-const { generateRandomEmail, generateRandomPhone } = require('../utils/helpers');
+const { getToastText, getFormErrors } = require('../utils/playwright-helpers');
 
-const validData = getTestData('registration', 'valid');
-const invalidData = getTestData('registration', 'invalid');
+const valid = getTestData('registration', 'valid');
+const invalid = getTestData('registration', 'invalid');
 
 test.describe('User Registration', () => {
-  let registerPage;
-
   test.beforeEach(async ({ page }) => {
-    registerPage = new RegisterPage(page);
-    await registerPage.navigate();
+    await page.goto('/register');
   });
 
-  test('should register a new user with valid details', async ({ page }) => {
-    const uniqueEmail = generateRandomEmail();
-    await registerPage.fillRegistrationForm({
-      ...validData,
-      email: uniqueEmail,
+  test('01 should register with valid unique email', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    const email = `e2e.${Date.now()}@example.com`;
+    await reg.register({
+      firstName: valid.firstName,
+      lastName: valid.lastName,
+      email,
+      password: valid.password,
+      confirmPassword: valid.confirmPassword,
+      phone: valid.phone,
     });
-    await registerPage.clickRegister();
-
-    const successMsg = await registerPage.getSuccessMessage();
-    const currentUrl = await registerPage.getCurrentUrl();
-
-    const registered = successMsg !== null || currentUrl.includes('/login');
-    expect(registered).toBeTruthy();
+    await page.waitForURL((u) => !u.pathname.includes('/register'), { timeout: 20000 });
+    expect(page.url()).not.toContain('/register');
   });
 
-  test('should show error for duplicate email registration', async () => {
-    await registerPage.fillRegistrationForm(invalidData.duplicateEmail);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    const errorMsg = await registerPage.getSuccessMessage();
-    const hasError = errors.length > 0 || errorMsg === null;
-    expect(hasError).toBeTruthy();
-  });
-
-  test('should show error for invalid email format', async () => {
-    await registerPage.fillRegistrationForm(invalidData.invalidEmail);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show error for short password', async () => {
-    await registerPage.fillRegistrationForm(invalidData.shortPassword);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show error for weak password without special characters', async () => {
-    await registerPage.fillRegistrationForm(invalidData.weakPassword);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show error for too-short first and last name', async () => {
-    await registerPage.fillRegistrationForm(invalidData.shortName);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show error for invalid phone number', async () => {
-    await registerPage.fillRegistrationForm(invalidData.invalidPhone);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show validation errors when all fields are empty', async () => {
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should show error for password mismatch', async () => {
-    await registerPage.fillRegistrationForm(invalidData.mismatchPassword);
-    await registerPage.clickRegister();
-
-    const errors = await registerPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-  });
-
-  test('should be able to login after successful registration', async ({ page }) => {
-    const uniqueEmail = generateRandomEmail();
-    const password = 'Test@12345';
-
-    await registerPage.fillRegistrationForm({
-      ...validData,
-      email: uniqueEmail,
-      password,
-      confirmPassword: password,
+  test('02 should reject duplicate email', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'X',
+      lastName: 'Y',
+      email: invalid.duplicateEmail.email,
+      password: invalid.duplicateEmail.password,
+      confirmPassword: invalid.duplicateEmail.confirmPassword,
+      phone: '9876543299',
     });
-    await registerPage.clickRegister();
-
-    const loginPage = new LoginPage(page);
-    await loginPage.navigate();
-    await loginPage.login(uniqueEmail, password);
-
-    const loggedIn = await loginPage.isLoggedIn();
-    const currentUrl = page.url();
-    expect(loggedIn || !currentUrl.includes('/login')).toBeTruthy();
+    const toast = await getToastText(page, { errorOnly: true });
+    expect(toast.length + (await getFormErrors(page)).length).toBeGreaterThan(0);
   });
 
-  test('should navigate to login page from register page', async ({ page }) => {
-    await registerPage.clickLoginLink();
-    expect(page.url()).toContain('/login');
+  test('03 should reject invalid email format', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'A',
+      lastName: 'B',
+      email: invalid.invalidEmail.email,
+      password: invalid.invalidEmail.password,
+      confirmPassword: invalid.invalidEmail.confirmPassword,
+      phone: '9876543210',
+    });
+    const errs = await getFormErrors(page);
+    const html5Invalid = await page.locator('input[name="email"]:invalid').count();
+    expect(errs.some((e) => /valid email/i.test(e)) || html5Invalid > 0).toBeTruthy();
+  });
+
+  test('04 should reject short password', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'Test',
+      lastName: 'User',
+      email: `shortpw.${Date.now()}@example.com`,
+      password: invalid.shortPassword.password,
+      confirmPassword: invalid.shortPassword.confirmPassword,
+      phone: '9876543210',
+    });
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /8 characters/i.test(e))).toBeTruthy();
+  });
+
+  test('05 should reject weak password without uppercase', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'Test',
+      lastName: 'User',
+      email: `weak.${Date.now()}@example.com`,
+      password: invalid.weakPassword.password,
+      confirmPassword: invalid.weakPassword.confirmPassword,
+      phone: '9876543210',
+    });
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /uppercase/i.test(e))).toBeTruthy();
+  });
+
+  test('06 should reject password mismatch', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'Test',
+      lastName: 'User',
+      email: `mis.${Date.now()}@example.com`,
+      password: invalid.mismatchPassword.password,
+      confirmPassword: invalid.mismatchPassword.confirmPassword,
+      phone: '9876543210',
+    });
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /match/i.test(e))).toBeTruthy();
+  });
+
+  test('07 should reject invalid phone', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    await reg.register({
+      firstName: 'Test',
+      lastName: 'User',
+      email: `ph.${Date.now()}@example.com`,
+      password: 'Password123!',
+      confirmPassword: 'Password123!',
+      phone: invalid.invalidPhone.phone,
+    });
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /phone|digit/i.test(e))).toBeTruthy();
+  });
+
+  test('08 should show errors when required fields empty', async ({ page }) => {
+    await page.locator('button[type="submit"]').click();
+    const errs = await getFormErrors(page);
+    expect(errs.length).toBeGreaterThan(0);
+  });
+
+  test('09 should navigate to login from footer link', async ({ page }) => {
+    await page.getByRole('link', { name: /^Sign in$/i }).click();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('10 should require first name', async ({ page }) => {
+    await page.locator('input[name="lastName"]').fill('Doe');
+    await page.locator('input[name="email"]').fill(`fn.${Date.now()}@example.com`);
+    await page.locator('input[name="password"]').fill('Password123!');
+    await page.locator('input[name="confirmPassword"]').fill('Password123!');
+    await page.locator('button[type="submit"]').click();
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /first name/i.test(e))).toBeTruthy();
+  });
+
+  test('11 should require last name', async ({ page }) => {
+    await page.locator('input[name="firstName"]').fill('John');
+    await page.locator('input[name="email"]').fill(`ln.${Date.now()}@example.com`);
+    await page.locator('input[name="password"]').fill('Password123!');
+    await page.locator('input[name="confirmPassword"]').fill('Password123!');
+    await page.locator('button[type="submit"]').click();
+    const errs = await getFormErrors(page);
+    expect(errs.some((e) => /last name/i.test(e))).toBeTruthy();
+  });
+
+  test('12 should display Create Account heading', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: /create account/i })).toBeVisible();
+  });
+
+  test('13 should accept optional empty phone when other fields valid', async ({ page }) => {
+    const reg = new RegisterPage(page);
+    const email = `nophone.${Date.now()}@example.com`;
+    await reg.register({
+      firstName: 'No',
+      lastName: 'Phone',
+      email,
+      password: 'Password123!',
+      confirmPassword: 'Password123!',
+      phone: '',
+    });
+    await page.waitForURL((u) => !u.pathname.includes('/register'), { timeout: 20000 });
+  });
+
+  test('14 should show password fields as password type', async ({ page }) => {
+    await expect(page.locator('input[name="password"]')).toHaveAttribute('type', 'password');
+    await expect(page.locator('input[name="confirmPassword"]')).toHaveAttribute('type', 'password');
+  });
+
+  test('15 should stay on register when client validation fails', async ({ page }) => {
+    await page.locator('input[name="email"]').fill('bad');
+    await page.locator('button[type="submit"]').click();
+    expect(page.url()).toContain('/register');
   });
 });

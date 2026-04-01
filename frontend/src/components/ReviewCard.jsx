@@ -4,16 +4,22 @@ import StarRating from './StarRating';
 function ReviewCard({ review }) {
   const {
     user,
+    user_name,
     rating,
     title,
     comment,
     createdAt,
+    created_at,
     isVerifiedPurchase,
+    is_verified_purchase,
   } = review;
 
-  const userName = user?.firstName
-    ? `${user.firstName} ${user.lastName || ''}`
-    : 'Anonymous';
+  const userName =
+    (typeof user_name === 'string' && user_name.trim())
+      ? user_name.trim()
+      : user?.firstName
+        ? `${user.firstName} ${user.lastName || ''}`.trim()
+        : 'Anonymous';
 
   const initials = userName
     .split(' ')
@@ -22,8 +28,9 @@ function ReviewCard({ review }) {
     .toUpperCase()
     .slice(0, 2);
 
-  const dateStr = createdAt
-    ? new Date(createdAt).toLocaleDateString('en-IN', {
+  const dateRaw = created_at ?? createdAt;
+  const dateStr = dateRaw
+    ? new Date(dateRaw).toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -40,7 +47,7 @@ function ReviewCard({ review }) {
             <p className="review-card-date">{dateStr}</p>
           </div>
         </div>
-        {isVerifiedPurchase && (
+        {(isVerifiedPurchase || is_verified_purchase) && (
           <span className="review-card-verified">
             <FiCheckCircle size={14} /> Verified Purchase
           </span>

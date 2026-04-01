@@ -1,5 +1,4 @@
 const db = require('../config/database');
-const { generateOrderNumber } = require('../utils/helpers');
 
 const OrderModel = {
   async create(userId, cartItems, orderData) {
@@ -7,17 +6,29 @@ const OrderModel = {
     try {
       await connection.beginTransaction();
 
-      const orderNumber = generateOrderNumber();
-      const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalAmount = cartItems.reduce(
+        (sum, item) => sum + parseFloat(item.price) * Number(item.quantity),
+        0
+      );
 
       const [orderResult] = await connection.query(
-        `INSERT INTO orders (user_id, order_number, total_amount, shipping_address, shipping_city, shipping_state, shipping_zip, payment_method, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'placed')`,
+        `INSERT INTO orders (
+           user_id, total_amount,
+           shipping_address_line1, shipping_address_line2,
+           shipping_city, shipping_state, shipping_zip,
+           payment_method, payment_status, order_notes
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          userId, orderNumber, totalAmount,
-          orderData.shipping_address, orderData.shipping_city,
-          orderData.shipping_state, orderData.shipping_zip,
-          orderData.payment_method
+          userId,
+          totalAmount,
+          orderData.shipping_address_line1,
+          orderData.shipping_address_line2 || null,
+          orderData.shipping_city,
+          orderData.shipping_state,
+          orderData.shipping_zip,
+          orderData.payment_method,
+          orderData.payment_status || 'completed',
+          orderData.order_notes || null,
         ]
       );
 
@@ -25,12 +36,13 @@ const OrderModel = {
 
       for (const item of cartItems) {
         await connection.query(
-          'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+          `INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase)
+           VALUES (?, ?, ?, ?)`,
           [orderId, item.product_id, item.quantity, item.price]
         );
 
         const [stockResult] = await connection.query(
-          'UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?',
+          'UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?',
           [item.quantity, item.product_id, item.quantity]
         );
 
@@ -41,14 +53,14 @@ const OrderModel = {
       }
 
       await connection.query(
-        "INSERT INTO order_status_history (order_id, status, notes) VALUES (?, 'placed', 'Order placed successfully')",
-        [orderId]
+        `INSERT INTO order_status (order_id, status, notes) VALUES (?, 'placed', ?)`,
+        [orderId, 'Order placed successfully']
       );
 
-      await connection.query('DELETE FROM cart_items WHERE user_id = ?', [userId]);
+      await connection.query('DELETE FROM cart WHERE user_id = ?', [userId]);
 
       await connection.commit();
-      return { success: true, orderId, orderNumber, totalAmount };
+      return { success: true, orderId, totalAmount };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -60,8 +72,9 @@ const OrderModel = {
   async getByUserId(userId, page = 1, limit = 10) {
     const offset = (page - 1) * limit;
     const [orders] = await db.query(
-      `SELECT o.*, 
-              (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+      `SELECT o.*,
+              (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS item_count,
+              (SELECT status FROM order_status WHERE order_id = o.id ORDER BY created_at DESC LIMIT 1) AS fulfillment_status
        FROM orders o
        WHERE o.user_id = ?
        ORDER BY o.created_at DESC
@@ -79,9 +92,12 @@ const OrderModel = {
 
   async getById(id) {
     const [orders] = await db.query(
-      `SELECT o.*, u.name as customer_name, u.email as customer_email
+      `SELECT o.*,
+              CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS customer_name,
+              u.email AS customer_email,
+              (SELECT status FROM order_status WHERE order_id = o.id ORDER BY created_at DESC LIMIT 1) AS fulfillment_status
        FROM orders o
-       JOIN users u ON o.user_id = u.id
+       LEFT JOIN users u ON o.user_id = u.id
        WHERE o.id = ?`,
       [id]
     );
@@ -91,37 +107,44 @@ const OrderModel = {
     const [items] = await db.query(
       `SELECT oi.*, p.name, p.image_url
        FROM order_items oi
-       JOIN products p ON oi.product_id = p.id
+       LEFT JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = ?`,
       [id]
     );
 
     const [statusHistory] = await db.query(
-      'SELECT * FROM order_status_history WHERE order_id = ? ORDER BY created_at ASC',
+      'SELECT * FROM order_status WHERE order_id = ? ORDER BY created_at ASC',
       [id]
     );
 
-    return { ...orders[0], items, statusHistory };
+    const row = orders[0];
+    return {
+      ...row,
+      status: row.fulfillment_status,
+      items,
+      statusHistory,
+    };
   },
 
   async getAllOrders(page = 1, limit = 10, status = null) {
     const offset = (page - 1) * limit;
-    let query = `SELECT o.*, u.name as customer_name, u.email as customer_email,
-                        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
+    let query = `SELECT o.*,
+                        CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS customer_name,
+                        u.email AS customer_email,
+                        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS item_count
                  FROM orders o
-                 JOIN users u ON o.user_id = u.id`;
+                 LEFT JOIN users u ON o.user_id = u.id`;
     const params = [];
 
     if (status) {
-      query += ' WHERE o.status = ?';
+      query += ` WHERE o.id IN (SELECT order_id FROM order_status WHERE status = ?)`;
       params.push(status);
     }
 
-    let countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
-    if (countQuery.includes('JOIN users')) {
-      countQuery = `SELECT COUNT(*) as total FROM orders o JOIN users u ON o.user_id = u.id${status ? ' WHERE o.status = ?' : ''}`;
-    }
-    const [[{ total }]] = await db.query(countQuery, status ? [status] : []);
+    const countSql = status
+      ? 'SELECT COUNT(*) AS total FROM orders o WHERE o.id IN (SELECT order_id FROM order_status WHERE status = ?)'
+      : 'SELECT COUNT(*) AS total FROM orders o';
+    const [[{ total }]] = await db.query(countSql, status ? [status] : []);
 
     query += ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
@@ -133,8 +156,8 @@ const OrderModel = {
 
   async updateStatus(id, status) {
     const [result] = await db.query(
-      'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-      [status, id]
+      'INSERT INTO order_status (order_id, status, notes) VALUES (?, ?, ?)',
+      [id, status, `Status set to ${status}`]
     );
     return result.affectedRows > 0;
   },
@@ -154,31 +177,33 @@ const OrderModel = {
         return { success: false, message: 'Order not found' };
       }
 
-      if (!['placed', 'confirmed'].includes(orders[0].status)) {
+      const [latest] = await connection.query(
+        'SELECT status FROM order_status WHERE order_id = ? ORDER BY created_at DESC LIMIT 1',
+        [id]
+      );
+      const currentStatus = latest[0]?.status;
+      if (!['placed', 'confirmed'].includes(currentStatus)) {
         await connection.rollback();
         return { success: false, message: 'Order cannot be cancelled at this stage' };
       }
 
-      const [items] = await connection.query(
+      const [orderItems] = await connection.query(
         'SELECT * FROM order_items WHERE order_id = ?',
         [id]
       );
 
-      for (const item of items) {
-        await connection.query(
-          'UPDATE products SET stock = stock + ? WHERE id = ?',
-          [item.quantity, item.product_id]
-        );
+      for (const item of orderItems) {
+        if (item.product_id) {
+          await connection.query(
+            'UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?',
+            [item.quantity, item.product_id]
+          );
+        }
       }
 
       await connection.query(
-        "UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = ?",
-        [id]
-      );
-
-      await connection.query(
-        "INSERT INTO order_status_history (order_id, status, notes) VALUES (?, 'cancelled', 'Order cancelled by customer')",
-        [id]
+        `INSERT INTO order_status (order_id, status, notes) VALUES (?, 'cancelled', ?)`,
+        [id, 'Order cancelled by customer']
       );
 
       await connection.commit();
@@ -189,7 +214,7 @@ const OrderModel = {
     } finally {
       connection.release();
     }
-  }
+  },
 };
 
 module.exports = OrderModel;

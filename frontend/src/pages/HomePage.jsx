@@ -37,9 +37,13 @@ function HomePage() {
       try {
         const [catRes, prodRes] = await Promise.all([
           api.get('/categories'),
-          api.get('/products?sort=-rating&limit=8'),
+          api.get('/products?sort=rating&limit=8'),
         ]);
-        if (catRes.data.success) setCategories(catRes.data.data || []);
+        if (catRes.data.success) {
+          const raw = catRes.data.data;
+          const list = Array.isArray(raw) ? raw : raw?.categories ?? [];
+          setCategories(list);
+        }
         if (prodRes.data.success) {
           const prods = prodRes.data.data?.products || prodRes.data.data || [];
           setTrendingProducts(prods);
@@ -68,9 +72,6 @@ function HomePage() {
             <Link to="/products" className="btn btn-primary btn-lg">
               Shop Now <FiArrowRight />
             </Link>
-            <Link to="/products" className="btn btn-outline btn-lg" style={{ borderColor: 'white', color: 'white' }}>
-              Explore Categories
-            </Link>
           </div>
         </div>
       </section>
@@ -91,8 +92,8 @@ function HomePage() {
                 <div className="categories-grid">
                   {categories.map((cat) => (
                     <Link
-                      key={cat._id}
-                      to={`/products?category=${cat._id}`}
+                      key={cat._id ?? cat.id}
+                      to={`/products?category=${cat._id ?? cat.id}`}
                       className="category-card"
                     >
                       <div className="category-card-icon">{getIcon(cat.name)}</div>
@@ -109,13 +110,13 @@ function HomePage() {
               <div className="container">
                 <div className="section-header">
                   <h2>Trending Products</h2>
-                  <Link to="/products?sort=-rating">
+                  <Link to="/products?sort=rating">
                     View All <FiArrowRight />
                   </Link>
                 </div>
                 <div className="trending-grid">
                   {trendingProducts.map((product) => (
-                    <ProductCard key={product._id} product={product} />
+                    <ProductCard key={product._id ?? product.id} product={product} />
                   ))}
                 </div>
               </div>

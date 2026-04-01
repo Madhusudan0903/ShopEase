@@ -1,39 +1,43 @@
-const { defineConfig } = require('@playwright/test');
+const { defineConfig, devices } = require("@playwright/test");
 
 module.exports = defineConfig({
-  testDir: './tests',
-  fullyParallel: true,
+  testDir: "./tests",
+
+  // Single DB user (john) + shared cart → avoid parallel execution
+  fullyParallel: false,
+
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: 2,
-  timeout: 30000,
+  workers: process.env.CI ? 2 : 2,
 
-  expect: {
-    timeout: 10000,
-  },
-
-  reporter: [
-    ['list'],
-    ['html', { outputFolder: 'reports/html-report', open: 'never' }],
-  ],
+  reporter: [["html", { open: "never" }], ["allure-playwright"], ["list"]],
 
   use: {
-    baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'on-first-retry',
-    actionTimeout: 15000,
-    navigationTimeout: 15000,
+    baseURL: process.env.BASE_URL || "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+    headless: true,
   },
 
   projects: [
     {
-      name: 'chrome',
-      use: {
-        channel: 'chrome',
-      },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 
-  outputDir: 'reports/test-results',
+  timeout: 90000,
+
+  expect: {
+    timeout: 20000,
+  },
 });

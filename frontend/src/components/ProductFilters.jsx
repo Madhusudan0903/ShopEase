@@ -30,16 +30,19 @@ function ProductFilters({
 
       <div className="filter-section">
         <h4>Categories</h4>
-        {categories.map((cat) => (
-          <label key={cat._id} className="filter-checkbox">
-            <input
-              type="checkbox"
-              checked={filters.category === cat._id}
-              onChange={() => handleCategoryChange(cat._id)}
-            />
-            {cat.name}
-          </label>
-        ))}
+        {categories.map((cat) => {
+          const catId = cat._id ?? cat.id;
+          return (
+            <label key={catId} className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={filters.category === String(catId)}
+                onChange={() => handleCategoryChange(String(catId))}
+              />
+              {cat.name}
+            </label>
+          );
+        })}
       </div>
 
       <div className="filter-section">

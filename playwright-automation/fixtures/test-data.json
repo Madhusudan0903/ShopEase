@@ -3,34 +3,34 @@
     "valid": {
       "firstName": "John",
       "lastName": "Doe",
-      "email": "john.doe@example.com",
-      "password": "Secure@123",
-      "confirmPassword": "Secure@123",
+      "email": "john.doe.replace@example.com",
+      "password": "Password123!",
+      "confirmPassword": "Password123!",
       "phone": "9876543210"
     },
     "invalid": {
       "duplicateEmail": {
         "firstName": "Jane",
         "lastName": "Doe",
-        "email": "testuser@example.com",
-        "password": "Test@1234",
-        "confirmPassword": "Test@1234",
+        "email": "alice@example.com",
+        "password": "Password123!",
+        "confirmPassword": "Password123!",
         "phone": "9876543211"
       },
       "invalidEmail": {
         "firstName": "Test",
         "lastName": "User",
         "email": "invalid-email",
-        "password": "Test@1234",
-        "confirmPassword": "Test@1234",
+        "password": "Password123!",
+        "confirmPassword": "Password123!",
         "phone": "9876543212"
       },
       "shortPassword": {
         "firstName": "Test",
         "lastName": "User",
         "email": "short.pass@example.com",
-        "password": "Ab1@",
-        "confirmPassword": "Ab1@",
+        "password": "Ab1!",
+        "confirmPassword": "Ab1!",
         "phone": "9876543213"
       },
       "weakPassword": {
@@ -45,16 +45,16 @@
         "firstName": "A",
         "lastName": "B",
         "email": "short.name@example.com",
-        "password": "Test@1234",
-        "confirmPassword": "Test@1234",
+        "password": "Password123!",
+        "confirmPassword": "Password123!",
         "phone": "9876543215"
       },
       "invalidPhone": {
         "firstName": "Test",
         "lastName": "User",
         "email": "invalid.phone@example.com",
-        "password": "Test@1234",
-        "confirmPassword": "Test@1234",
+        "password": "Password123!",
+        "confirmPassword": "Password123!",
         "phone": "123"
       },
       "emptyFields": {
@@ -69,123 +69,95 @@
         "firstName": "Test",
         "lastName": "User",
         "email": "mismatch@example.com",
-        "password": "Test@1234",
-        "confirmPassword": "Wrong@1234",
+        "password": "Password123!",
+        "confirmPassword": "WrongPass123!",
         "phone": "9876543216"
       }
     }
   },
   "login": {
     "valid": {
-      "email": "testuser@example.com",
-      "password": "Test@1234"
+      "email": "alice@example.com",
+      "password": "Password123!"
     },
     "invalid": {
       "wrongPassword": {
-        "email": "testuser@example.com",
-        "password": "WrongPass@123"
+        "email": "alice@example.com",
+        "password": "WrongPass123!"
       },
       "unregisteredEmail": {
-        "email": "nonexistent@example.com",
-        "password": "Test@1234"
+        "email": "nonexistent999@example.com",
+        "password": "Password123!"
       },
       "emptyEmail": {
         "email": "",
-        "password": "Test@1234"
+        "password": "Password123!"
       },
       "emptyPassword": {
-        "email": "testuser@example.com",
+        "email": "alice@example.com",
         "password": ""
       }
     }
   },
   "products": {
-    "searchKeywords": ["laptop", "phone", "headphones", "camera", "watch"],
-    "invalidSearch": "xyznonexistentproduct123",
-    "categories": ["Electronics", "Clothing", "Books", "Home & Kitchen", "Sports"],
-    "sortOptions": ["price-low-high", "price-high-low", "name-asc", "name-desc", "rating", "newest"],
-    "brands": ["Samsung", "Apple", "Sony", "Nike", "Adidas"],
-    "priceRanges": {
-      "low": { "min": 0, "max": 500 },
-      "medium": { "min": 500, "max": 2000 },
-      "high": { "min": 2000, "max": 10000 }
+    "searchKeywords": ["cotton", "shirt", "running", "watch", "book"],
+    "invalidSearch": "xyznonexistentproduct12345",
+    "categories": ["Electronics", "Clothing", "Footwear", "Books"],
+    "sortValues": {
+      "priceAsc": "price",
+      "priceDesc": "-price",
+      "nameAsc": "name",
+      "newest": "-createdAt",
+      "rating": "-rating"
     },
-    "ratings": [1, 2, 3, 4, 5]
+    "brandSample": "UrbanWear",
+    "inStockProductId": 7,
+    "outOfStockProductId": 5
   },
-  "cart": {
-    "validQuantity": 2,
-    "maxQuantity": 10,
-    "invalidQuantity": 0,
-    "excessQuantity": 999
-  },
+  "cart": {},
   "checkout": {
     "shippingAddress": {
       "valid": {
-        "line1": "123 Main Street",
-        "line2": "Apt 4B",
-        "city": "New York",
-        "state": "NY",
-        "zip": "10001"
+        "line1": "123 MG Road",
+        "line2": "Near Metro",
+        "city": "Bengaluru",
+        "state": "KA",
+        "zip": "560001"
       },
-      "invalid": {
-        "line1": "",
+      "invalidZip": {
+        "line1": "123 MG Road",
         "line2": "",
-        "city": "",
-        "state": "",
+        "city": "Bengaluru",
+        "state": "KA",
         "zip": "abc"
       }
     },
     "paymentMethods": {
       "creditCard": {
-        "method": "credit-card",
         "cardNumber": "4111111111111111",
-        "expiryDate": "12/28",
-        "cvv": "123",
-        "nameOnCard": "Test User"
+        "expiry": "12/28",
+        "cvv": "123"
       },
       "upi": {
-        "method": "upi",
-        "upiId": "testuser@upi"
-      },
-      "cod": {
-        "method": "cod"
+        "upiId": "alice@paytm"
       }
     }
   },
   "reviews": {
     "valid": {
-      "rating": 4,
-      "title": "Great product quality",
-      "comment": "This product exceeded my expectations. The quality is excellent and it arrived on time. Highly recommended for anyone looking for a reliable product."
-    },
-    "updated": {
-      "rating": 5,
-      "title": "Updated - Even better than expected",
-      "comment": "After using this product for a month, I can confidently say it is one of the best purchases I have made. Updating my review to 5 stars."
+      "ratingStars": 4,
+      "title": "Excellent purchase experience",
+      "comment": "This product exceeded my expectations. The quality is excellent and delivery was smooth. I would recommend it to others looking for something reliable."
     },
     "invalid": {
-      "noRating": {
-        "rating": 0,
-        "title": "Missing rating",
-        "comment": "This review has no rating selected."
-      },
       "shortTitle": {
-        "rating": 3,
         "title": "Ok",
-        "comment": "This is a valid comment but the title is too short."
+        "comment": "This comment is long enough to pass validation rules for the review form."
       },
       "shortComment": {
-        "rating": 3,
-        "title": "Short comment test",
-        "comment": "Short"
+        "title": "Valid title length",
+        "comment": "short"
       }
-    }
-  },
-  "profile": {
-    "updated": {
-      "firstName": "UpdatedFirst",
-      "lastName": "UpdatedLast",
-      "phone": "9998887776"
     }
   }
 }

@@ -51,7 +51,7 @@ function CartPage() {
 
               <div className="cart-items">
                 {cartItems.map((item) => (
-                  <CartItem key={item._id} item={item} />
+                  <CartItem key={item.id ?? item._id} item={item} />
                 ))}
               </div>
             </div>

@@ -3,57 +3,37 @@ const BasePage = require('./BasePage');
 class OrdersPage extends BasePage {
   constructor(page) {
     super(page);
-    this.orderRows = '.order-row, .order-card, [data-testid="order-item"], .order-item';
-    this.orderCount = '.order-count, [data-testid="order-count"]';
-    this.orderNumber = '.order-number, [data-testid="order-number"]';
-    this.orderStatus = '.order-status, [data-testid="order-status"]';
-    this.orderDate = '.order-date, [data-testid="order-date"]';
-    this.orderTotal = '.order-total, [data-testid="order-total"]';
-    this.viewDetailButton = '[data-testid="view-detail"], .view-detail, a:has-text("View Details"), button:has-text("View")';
-    this.emptyOrders = '.empty-orders, [data-testid="empty-orders"], .no-orders';
+    this.orderCard = '.order-card';
   }
 
   async navigate() {
-    await super.navigate('/orders');
-  }
-
-  async getOrders() {
-    const orders = [];
-    const count = await this.page.locator(this.orderRows).count();
-    for (let i = 0; i < count; i++) {
-      const row = this.page.locator(this.orderRows).nth(i);
-      orders.push({
-        number: await row.locator('.order-number, [data-testid="order-number"]').textContent().catch(() => ''),
-        status: await row.locator('.order-status, [data-testid="order-status"]').textContent().catch(() => ''),
-        date: await row.locator('.order-date, [data-testid="order-date"]').textContent().catch(() => ''),
-        total: await row.locator('.order-total, [data-testid="order-total"]').textContent().catch(() => ''),
-      });
-    }
-    return orders;
-  }
-
-  async getOrderCount() {
-    return await this.page.locator(this.orderRows).count();
-  }
-
-  async clickOrderDetail(index = 0) {
-    const row = this.page.locator(this.orderRows).nth(index);
-    const detailBtn = row.locator(this.viewDetailButton.split(', ').join(', ')).first();
-    if (await detailBtn.isVisible().catch(() => false)) {
-      await detailBtn.click();
+    const userMenu = this.page.locator('.navbar-user-dropdown button').first();
+    if (await userMenu.isVisible().catch(() => false)) {
+      await userMenu.click();
+      const myOrdersLink = this.page.locator('.navbar-dropdown-menu a[href="/orders"]').first();
+      if (await myOrdersLink.isVisible().catch(() => false)) {
+        await myOrdersLink.click();
+      } else {
+        await super.navigate('/orders');
+      }
     } else {
-      await row.click();
+      await super.navigate('/orders');
     }
+    await this.page.waitForURL(/\/orders|\/login/, { timeout: 20000 });
+    await this.page.waitForTimeout(600);
+  }
+
+  async getOrderCardsCount() {
+    return this.page.locator(this.orderCard).count();
+  }
+
+  async openOrderDetail(index = 0) {
+    await this.page.locator(this.orderCard).nth(index).getByRole('link', { name: /view details/i }).click();
     await this.waitForLoad();
   }
 
-  async getOrderStatus(index = 0) {
-    const row = this.page.locator(this.orderRows).nth(index);
-    return await row.locator('.order-status, [data-testid="order-status"]').textContent();
-  }
-
-  async isEmptyOrdersVisible() {
-    return await this.isElementVisible(this.emptyOrders);
+  async getFirstOrderIdText() {
+    return (await this.page.locator('.order-card-id').first().textContent())?.trim() || '';
   }
 }
 

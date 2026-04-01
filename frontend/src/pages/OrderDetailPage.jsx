@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import api from '../api/axios';
 import OrderStatusTracker from '../components/OrderStatusTracker';
 import Loading from '../components/Loading';
+import { getProductImageUrl } from '../utils/productImage';
 
 function OrderDetailPage() {
   const { id } = useParams();
@@ -16,7 +17,10 @@ function OrderDetailPage() {
   const fetchOrder = async () => {
     try {
       const { data } = await api.get(`/orders/${id}`);
-      if (data.success) setOrder(data.data);
+      if (data.success) {
+        const payload = data.data;
+        setOrder(payload?.order ?? payload);
+      }
     } catch {
       navigate('/orders');
     } finally {
@@ -47,9 +51,10 @@ function OrderDetailPage() {
   if (loading) return <Loading text="Loading order details..." />;
   if (!order) return null;
 
-  const status = order.status || order.orderStatus || 'Pending';
+  const status = order.status || order.fulfillment_status || order.orderStatus || 'placed';
   const items = order.items || order.orderItems || [];
-  const canCancel = ['pending', 'confirmed'].includes(status.toLowerCase());
+  const st = String(status).toLowerCase();
+  const canCancel = ['placed', 'confirmed', 'pending'].includes(st);
 
   return (
     <div className="order-detail">
@@ -58,9 +63,7 @@ function OrderDetailPage() {
           <FiArrowLeft /> Back to Orders
         </button>
 
-        <h1>
-          Order #{order.orderNumber || order._id?.slice(-8).toUpperCase()}
-        </h1>
+        <h1>Order #{order.id ?? order._id}</h1>
 
         <div className="order-detail-section">
           <h2>Order Status</h2>
@@ -75,17 +78,20 @@ function OrderDetailPage() {
           <div className="order-items-list">
             {items.map((item, idx) => {
               const prod = item.product || item;
+              const unit = item.price_at_purchase ?? item.price ?? prod.price ?? 0;
               return (
-                <div key={idx} className="order-item-row">
+                <div key={item.id ?? idx} className="order-item-row">
                   <div className="order-item-img">
-                    <img src={prod.images?.[0] || prod.image || '/placeholder.png'} alt={prod.name} />
+                    <img src={getProductImageUrl({ ...item, product: prod })} alt={prod.name} />
                   </div>
                   <div className="order-item-details">
                     <h4>{prod.name}</h4>
-                    <span>Qty: {item.quantity} × ₹{(item.price || prod.price || 0).toLocaleString('en-IN')}</span>
+                    <span>
+                      Qty: {item.quantity} × ₹{Number(unit).toLocaleString('en-IN')}
+                    </span>
                   </div>
                   <div className="order-item-price">
-                    ₹{((item.price || prod.price || 0) * item.quantity).toLocaleString('en-IN')}
+                    ₹{(Number(unit) * item.quantity).toLocaleString('en-IN')}
                   </div>
                 </div>
               );
@@ -97,36 +103,31 @@ function OrderDetailPage() {
           <div className="order-detail-section">
             <h2>Shipping Address</h2>
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              {order.shippingAddress?.addressLine1 || order.shippingAddressLine1}<br />
-              {(order.shippingAddress?.addressLine2 || order.shippingAddressLine2) && (
-                <>{order.shippingAddress?.addressLine2 || order.shippingAddressLine2}<br /></>
+              {order.shipping_address_line1 || order.shippingAddressLine1}<br />
+              {(order.shipping_address_line2 || order.shippingAddressLine2) && (
+                <>{order.shipping_address_line2 || order.shippingAddressLine2}<br /></>
               )}
-              {order.shippingAddress?.city || order.shippingCity},{' '}
-              {order.shippingAddress?.state || order.shippingState} —{' '}
-              {order.shippingAddress?.zip || order.shippingZip}
+              {order.shipping_city || order.shippingCity},{' '}
+              {order.shipping_state || order.shippingState} —{' '}
+              {order.shipping_zip || order.shippingZip}
             </p>
           </div>
 
           <div className="order-detail-section">
             <h2>Payment & Summary</h2>
             <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
-              <strong>Method:</strong> {order.paymentMethod}
+              <strong>Method:</strong>{' '}
+              {order.payment_method || order.paymentMethod || '—'}
             </p>
-            <div className="order-summary-row">
-              <span>Subtotal</span>
-              <span>₹{(order.subtotal || order.itemsTotal || 0).toLocaleString('en-IN')}</span>
-            </div>
-            <div className="order-summary-row">
-              <span>Shipping</span>
-              <span>₹{(order.shippingCost || order.shippingPrice || 0).toLocaleString('en-IN')}</span>
-            </div>
-            <div className="order-summary-row">
-              <span>Tax</span>
-              <span>₹{(order.tax || order.taxAmount || 0).toLocaleString('en-IN')}</span>
-            </div>
+            <p style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
+              <strong>Payment status:</strong>{' '}
+              {order.payment_status || order.paymentStatus || '—'}
+            </p>
             <div className="order-summary-row total">
               <span>Total</span>
-              <span>₹{(order.totalAmount || order.total || 0).toLocaleString('en-IN')}</span>
+              <span>
+                ₹{Number(order.total_amount ?? order.totalAmount ?? order.total ?? 0).toLocaleString('en-IN')}
+              </span>
             </div>
           </div>
         </div>

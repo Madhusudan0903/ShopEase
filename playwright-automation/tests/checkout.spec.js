@@ -1,150 +1,202 @@
 const { test, expect } = require('@playwright/test');
-const LoginPage = require('../pages/LoginPage');
-const ProductsPage = require('../pages/ProductsPage');
-const ProductDetailPage = require('../pages/ProductDetailPage');
-const CartPage = require('../pages/CartPage');
 const CheckoutPage = require('../pages/CheckoutPage');
-const { getTestData, getValidUser, getCheckoutData } = require('../utils/test-data-helper');
+const CartPage = require('../pages/CartPage');
+const { getTestData } = require('../utils/test-data-helper');
+const { loginAsUser } = require('../utils/playwright-helpers');
 
-const validUser = getValidUser();
-const checkoutTestData = getTestData('checkout');
-const { address, payment } = getCheckoutData();
+const login = getTestData('login', 'valid');
+const checkoutCfg = getTestData('checkout');
+const ship = checkoutCfg.shippingAddress;
+const pay = checkoutCfg.paymentMethods;
+const products = getTestData('products');
 
-async function addItemAndGoToCheckout(page) {
-  const loginPage = new LoginPage(page);
-  await loginPage.navigate();
-  await loginPage.login(validUser.email, validUser.password);
-
-  const productsPage = new ProductsPage(page);
-  await productsPage.navigate();
-  await productsPage.clickProduct(0);
-
-  const detailPage = new ProductDetailPage(page);
-  await detailPage.clickAddToCart();
-
-  const cartPage = new CartPage(page);
-  await cartPage.navigate();
-  await cartPage.clickCheckout();
+async function fillValidShipping(co) {
+  await co.fillShipping(ship.valid);
 }
 
+async function ensureCheckoutReady(page) {
+  await page.evaluate(async (productId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    await fetch('/api/cart/clear', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await fetch('/api/cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ product_id: Number(productId), quantity: 1 }),
+    });
+  }, products.inStockProductId);
+  await page.goto('/checkout');
+}
+
+test.describe.configure({ mode: 'serial' });
+
 test.describe('Checkout Flow', () => {
-  test('should complete full checkout with credit card', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('credit-card');
-    await checkoutPage.fillCreditCardDetails(payment);
-    await checkoutPage.placeOrder();
-
-    const confirmation = await checkoutPage.getOrderConfirmation();
-    const url = page.url();
-    expect(confirmation !== null || url.includes('/orders')).toBeTruthy();
+  test.beforeEach(async ({ page }) => {
+    await loginAsUser(page, login.email, login.password);
+    await ensureCheckoutReady(page);
+    await page.waitForTimeout(800);
   });
 
-  test('should show validation errors for empty shipping address', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(checkoutTestData.shippingAddress.invalid);
-    await checkoutPage.placeOrder();
-
-    const errors = await checkoutPage.getValidationErrors();
-    const url = page.url();
-    expect(errors.length > 0 || url.includes('/checkout')).toBeTruthy();
+  test('01 should show checkout steps', async ({ page }) => {
+    await expect(page.getByText(/shipping/i).first()).toBeVisible();
   });
 
-  test('should complete checkout with UPI payment', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('upi');
-    await checkoutPage.fillUpiDetails(checkoutTestData.paymentMethods.upi.upiId);
-    await checkoutPage.placeOrder();
-
-    const confirmation = await checkoutPage.getOrderConfirmation();
-    const url = page.url();
-    expect(confirmation !== null || url.includes('/orders')).toBeTruthy();
+  test('02 should validate empty address fields', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('capstone_saved_shipping_v1'));
+    await page.reload();
+    await page.waitForTimeout(1200);
+    const co = new CheckoutPage(page);
+    await page.locator('input[placeholder*="Street address"]').waitFor({ state: 'visible', timeout: 20000 });
+    await co.clearShippingFields();
+    await co.clickContinue();
+    await expect(page.locator('.form-error').first()).toBeVisible();
   });
 
-  test('should complete checkout with Cash on Delivery', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('cod');
-    await checkoutPage.placeOrder();
-
-    const confirmation = await checkoutPage.getOrderConfirmation();
-    const url = page.url();
-    expect(confirmation !== null || url.includes('/orders')).toBeTruthy();
+  test('03 should advance to payment after valid shipping', async ({ page }) => {
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await expect(page.getByRole('heading', { name: /payment method/i })).toBeVisible();
   });
 
-  test('should not allow checkout with empty cart', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.navigate();
-    await loginPage.login(validUser.email, validUser.password);
-
-    const checkoutPage = new CheckoutPage(page);
-    await checkoutPage.navigate();
-
-    const url = page.url();
-    const errors = await checkoutPage.getValidationErrors();
-    expect(url.includes('/cart') || url.includes('/checkout') || errors.length > 0).toBeTruthy();
+  test('04 should complete order with Cash on Delivery', async ({ page }) => {
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('Cash on Delivery');
+    await co.clickContinue();
+    await expect(page.getByRole('heading', { name: /order review/i })).toBeVisible();
+    await co.placeOrder();
+    await page.waitForURL(/\/orders/, { timeout: 25000 });
   });
 
-  test('should display order confirmation with order number', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('credit-card');
-    await checkoutPage.fillCreditCardDetails(payment);
-    await checkoutPage.placeOrder();
-
-    const orderNumber = await checkoutPage.getOrderNumber();
-    const confirmation = await checkoutPage.getOrderConfirmation();
-    expect(orderNumber !== null || confirmation !== null).toBeTruthy();
+  test('05 should complete order with UPI and valid UPI id', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto('/checkout');
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('UPI');
+    await co.fillUpiId(pay.upi.upiId);
+    await co.clickContinue();
+    await co.placeOrder();
+    await page.waitForURL(/\/orders/, { timeout: 25000 });
   });
 
-  test('should validate zip code format in shipping address', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
+  test('06 should complete order with credit card details', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto('/checkout');
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('Credit Card');
+    await co.fillCardFields(pay.creditCard);
+    await co.clickContinue();
+    await co.placeOrder();
+    await page.waitForURL(/\/orders/, { timeout: 25000 });
+  });
 
-    await checkoutPage.fillShippingAddress({
-      ...address,
+  test('07 should redirect away from checkout when cart empty', async ({ page }) => {
+    await page.evaluate(async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      await fetch('/api/cart/clear', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    });
+    await page.goto('/cart');
+    await expect(page.locator('.cart-item')).toHaveCount(0);
+    await page.goto('/checkout');
+    await expect(page).toHaveURL(/\/cart/, { timeout: 60000 });
+  });
+
+  test('08 should show review step with item list', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto('/checkout');
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('Cash on Delivery');
+    await co.clickContinue();
+    await expect(page.getByText(/items/i).first()).toBeVisible();
+  });
+
+  test('09 should validate UPI when UPI selected', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto('/checkout');
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('UPI');
+    await co.clickContinue();
+    await expect(page.locator('.form-error').first()).toBeVisible();
+  });
+
+  test('10 should allow going back from payment to shipping', async ({ page }) => {
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.clickBack();
+    await expect(page.getByPlaceholder(/Street address/i)).toBeVisible();
+  });
+
+  test('11 should show tax and shipping in review', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto('/checkout');
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await co.selectPaymentLabel('Cash on Delivery');
+    await co.clickContinue();
+    await expect(page.getByText(/tax/i).first()).toBeVisible();
+  });
+
+  test('12 should show invalid zip client error', async ({ page }) => {
+    const co = new CheckoutPage(page);
+    await co.fillShipping({
+      line1: '123 Street',
+      line2: '',
+      city: 'City',
+      state: 'ST',
       zip: 'abc',
     });
-    await checkoutPage.selectPaymentMethod('cod');
-    await checkoutPage.placeOrder();
-
-    const errors = await checkoutPage.getValidationErrors();
-    const url = page.url();
-    expect(errors.length > 0 || url.includes('/checkout')).toBeTruthy();
+    await co.clickContinue();
+    await expect(page.locator('.form-error').first()).toBeVisible();
   });
 
-  test('should retain shipping address after selecting payment method', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
-
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('upi');
-
-    const line1Value = await page.locator('input[name="addressLine1"], input[name="line1"], [data-testid="address-line1"]').inputValue().catch(() => '');
-    expect(line1Value.length > 0 || true).toBeTruthy();
+  test('13 should have remember shipping checkbox', async ({ page }) => {
+    await expect(page.locator('input[type="checkbox"]')).toBeVisible();
   });
 
-  test('should show review order summary before placing', async ({ page }) => {
-    await addItemAndGoToCheckout(page);
-    const checkoutPage = new CheckoutPage(page);
+  test('14 should show payment options including Debit Card', async ({ page }) => {
+    const co = new CheckoutPage(page);
+    await fillValidShipping(co);
+    await co.clickContinue();
+    await expect(page.locator('.payment-option', { hasText: 'Debit Card' })).toBeVisible();
+  });
 
-    await checkoutPage.fillShippingAddress(address);
-    await checkoutPage.selectPaymentMethod('credit-card');
-    await checkoutPage.fillCreditCardDetails(payment);
-    await checkoutPage.reviewOrder();
-
-    const pageContent = await page.textContent('body');
-    expect(pageContent.length).toBeGreaterThan(0);
+  test('15 should load checkout only when authenticated', async ({ page, context }) => {
+    await context.clearCookies();
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+    await page.goto('/checkout');
+    await page.waitForURL(/\/login/, { timeout: 15000 });
   });
 });

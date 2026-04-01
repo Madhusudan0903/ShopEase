@@ -16,7 +16,10 @@ const VALID_STATUS_TRANSITIONS = {
 const orderController = {
   async createOrder(req, res, next) {
     try {
-      const { shipping_address, shipping_city, shipping_state, shipping_zip, payment_method } = req.body;
+      const orderPayload = req.orderBody;
+      if (!orderPayload) {
+        return res.status(400).json(formatResponse(false, 'Invalid order payload', null));
+      }
 
       const cartItems = await CartModel.getByUserId(req.user.id);
       if (!cartItems || cartItems.length === 0) {
@@ -27,18 +30,13 @@ const orderController = {
         if (!item.is_active) {
           return res.status(400).json(formatResponse(false, `Product "${item.name}" is no longer available`, null));
         }
-        if (item.quantity > item.stock) {
-          return res.status(400).json(formatResponse(false, `Insufficient stock for "${item.name}". Available: ${item.stock}, Requested: ${item.quantity}`, null));
+        const available = Number(item.stock ?? item.stock_quantity ?? 0);
+        if (item.quantity > available) {
+          return res.status(400).json(formatResponse(false, `Insufficient stock for "${item.name}". Available: ${available}, Requested: ${item.quantity}`, null));
         }
       }
 
-      const result = await OrderModel.create(req.user.id, cartItems, {
-        shipping_address,
-        shipping_city,
-        shipping_state,
-        shipping_zip,
-        payment_method
-      });
+      const result = await OrderModel.create(req.user.id, cartItems, orderPayload);
 
       if (!result.success) {
         return res.status(400).json(formatResponse(false, result.message, null));
@@ -138,7 +136,8 @@ const orderController = {
         return res.status(403).json(formatResponse(false, 'Access denied. You can only cancel your own orders', null));
       }
 
-      if (!['placed', 'confirmed'].includes(order.status)) {
+      const st = (order.status || '').toLowerCase();
+      if (!['placed', 'confirmed'].includes(st)) {
         return res.status(400).json(formatResponse(false, `Order cannot be cancelled. Current status: ${order.status}. Orders can only be cancelled when status is "placed" or "confirmed"`, null));
       }
 

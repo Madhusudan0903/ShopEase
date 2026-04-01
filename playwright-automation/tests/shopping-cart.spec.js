@@ -1,138 +1,164 @@
 const { test, expect } = require('@playwright/test');
-const LoginPage = require('../pages/LoginPage');
-const ProductsPage = require('../pages/ProductsPage');
-const ProductDetailPage = require('../pages/ProductDetailPage');
 const CartPage = require('../pages/CartPage');
-const { getTestData, getValidUser } = require('../utils/test-data-helper');
+const { getTestData } = require('../utils/test-data-helper');
+const { loginAsUser } = require('../utils/playwright-helpers');
 
-const validUser = getValidUser();
-const cartData = getTestData('cart');
+const login = getTestData('login', 'valid');
+const products = getTestData('products');
+
+test.describe.configure({ mode: 'serial' });
 
 test.describe('Shopping Cart', () => {
-  let loginPage;
-  let productsPage;
-  let cartPage;
+  async function resetCartViaApi(page) {
+    await page.evaluate(async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      await fetch('/api/cart/clear', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    });
+  }
+
+  async function seedCartWithOneItem(page) {
+    const itemCount = await page.evaluate(async (productId) => {
+      const token = localStorage.getItem('token');
+      if (!token) return -1;
+      await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ product_id: Number(productId), quantity: 1 }),
+      });
+      const res = await fetch('/api/cart', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      return json?.data?.items?.length ?? 0;
+    }, products.inStockProductId);
+    expect(itemCount).toBeGreaterThan(0);
+    await page.goto('/cart');
+    await expect(page.locator('.cart-item').first()).toBeVisible({ timeout: 20000 });
+  }
 
   test.beforeEach(async ({ page }) => {
-    loginPage = new LoginPage(page);
-    productsPage = new ProductsPage(page);
-    cartPage = new CartPage(page);
-
-    await loginPage.navigate();
-    await loginPage.login(validUser.email, validUser.password);
+    await loginAsUser(page, login.email, login.password);
+    await resetCartViaApi(page);
+    await seedCartWithOneItem(page);
   });
 
-  test('should add an item to the cart from product detail', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    const count = await cartPage.getItemCount();
-    expect(count).toBeGreaterThan(0);
+  test('01 should show cart with line item', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    expect(await cart.getLineCount()).toBeGreaterThan(0);
   });
 
-  test('should update item quantity in the cart', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    await cartPage.updateQuantity(0, cartData.validQuantity);
-
-    const items = await cartPage.getCartItems();
-    expect(items.length).toBeGreaterThan(0);
+  test('02 should increase quantity', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    const qty = page.locator('.cart-item').first().locator('.quantity-selector span');
+    const before = Number((await qty.textContent()) || '1');
+    await cart.clickQuantityIncrease(0);
+    await expect(qty).toContainText(String(before + 1));
   });
 
-  test('should remove an item from the cart', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    const countBefore = await cartPage.getItemCount();
-    await cartPage.removeItem(0);
-
-    const countAfter = await cartPage.getItemCount();
-    expect(countAfter).toBeLessThan(countBefore);
+  test('03 should decrease quantity', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    const qty = page.locator('.cart-item').first().locator('.quantity-selector span');
+    const before = Number((await qty.textContent()) || '1');
+    await cart.clickQuantityIncrease(0);
+    await cart.clickQuantityDecrease(0);
+    await expect(qty).toContainText(String(before));
   });
 
-  test('should clear all items from the cart', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    await cartPage.clearCart();
-
-    const isEmpty = await cartPage.isCartEmpty();
-    const count = await cartPage.getItemCount();
-    expect(isEmpty || count === 0).toBeTruthy();
+  test('04 should remove item from cart', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await cart.removeItem(0);
+    await expect(page.locator('.cart-empty')).toBeVisible({ timeout: 15000 });
   });
 
-  test('should calculate cart total correctly', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    const total = await cartPage.getTotal();
-    expect(total).toBeGreaterThan(0);
+  test('05 should show empty cart message after clear', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(1000);
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await cart.clearCart();
+    await expect(page.getByText(/your cart is empty/i)).toBeVisible();
   });
 
-  test('should display empty cart message when cart is empty', async () => {
-    await cartPage.navigate();
-
-    const isEmpty = await cartPage.isCartEmpty();
-    const count = await cartPage.getItemCount();
-    expect(isEmpty || count === 0).toBeTruthy();
+  test('06 should show order summary with subtotal', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    const sub = await cart.getSubtotalText();
+    expect(sub).toContain('₹');
   });
 
-  test('should proceed to checkout from cart', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
+  test('07 should show total in summary', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.locator('.cart-item').first()).toBeVisible({ timeout: 15000 });
+    const tot = await cart.getTotalText();
+    expect(tot).toContain('₹');
+  });
 
-    await cartPage.navigate();
-    await cartPage.clickCheckout();
-
+  test('08 should navigate to checkout via link', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await cart.proceedToCheckout();
     expect(page.url()).toContain('/checkout');
   });
 
-  test('should display subtotal for cart items', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    const detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
-
-    await cartPage.navigate();
-    const subtotal = await cartPage.getSubtotal();
-    expect(subtotal).toBeGreaterThan(0);
+  test('09 should show Continue Shopping link', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.getByRole('button', { name: /continue shopping/i })).toBeVisible();
   });
 
-  test('should add multiple different items to cart', async ({ page }) => {
-    await productsPage.navigate();
-    await productsPage.clickProduct(0);
-    let detailPage = new ProductDetailPage(page);
-    await detailPage.clickAddToCart();
+  test('10 should display product title in cart line', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.locator('.cart-item h3').first()).toBeVisible();
+  });
 
-    await productsPage.navigate();
-    const cards = await productsPage.getProductCards();
-    if (await cards.count() > 1) {
-      await productsPage.clickProduct(1);
-      detailPage = new ProductDetailPage(page);
-      await detailPage.clickAddToCart();
-    }
+  test('11 should show cart page heading', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.getByRole('heading', { name: /shopping cart/i })).toBeVisible();
+  });
 
-    await cartPage.navigate();
-    const count = await cartPage.getItemCount();
-    expect(count).toBeGreaterThanOrEqual(1);
+  test('12 should add two different products', async ({ page }) => {
+    await page.goto(`/products/${products.inStockProductId}`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(800);
+    await page.goto(`/products/2`);
+    await page.getByRole('button', { name: /add to cart/i }).click();
+    await page.waitForTimeout(1200);
+    const cart = new CartPage(page);
+    await cart.navigate();
+    expect(await cart.getLineCount()).toBeGreaterThanOrEqual(1);
+  });
+
+  test('13 should show line subtotal per item', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.locator('.cart-item-subtotal').first()).toContainText('₹');
+  });
+
+  test('14 should update navbar cart badge count', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await expect(page.locator('.navbar-cart-badge')).toBeVisible();
+  });
+
+  test('15 should allow proceeding to checkout when items exist', async ({ page }) => {
+    const cart = new CartPage(page);
+    await cart.navigate();
+    await cart.proceedToCheckout();
+    await expect(page).toHaveURL(/\/checkout/, { timeout: 15000 });
   });
 });

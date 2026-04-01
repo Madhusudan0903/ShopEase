@@ -3,111 +3,61 @@ const BasePage = require('./BasePage');
 class CheckoutPage extends BasePage {
   constructor(page) {
     super(page);
-    this.addressLine1 = 'input[name="addressLine1"], input[name="line1"], [data-testid="address-line1"]';
-    this.addressLine2 = 'input[name="addressLine2"], input[name="line2"], [data-testid="address-line2"]';
-    this.cityInput = 'input[name="city"], [data-testid="city-input"]';
-    this.stateInput = 'input[name="state"], [data-testid="state-input"]';
-    this.zipInput = 'input[name="zip"], input[name="zipCode"], input[name="postalCode"], [data-testid="zip-input"]';
-    this.paymentMethodRadio = 'input[name="paymentMethod"], [data-testid="payment-method"]';
-    this.creditCardOption = '[data-testid="payment-credit-card"], input[value="credit-card"]';
-    this.upiOption = '[data-testid="payment-upi"], input[value="upi"]';
-    this.codOption = '[data-testid="payment-cod"], input[value="cod"]';
-    this.cardNumberInput = 'input[name="cardNumber"], [data-testid="card-number"]';
-    this.expiryDateInput = 'input[name="expiryDate"], [data-testid="expiry-date"]';
-    this.cvvInput = 'input[name="cvv"], [data-testid="cvv"]';
-    this.nameOnCardInput = 'input[name="nameOnCard"], [data-testid="name-on-card"]';
-    this.upiIdInput = 'input[name="upiId"], [data-testid="upi-id"]';
-    this.reviewOrderButton = '[data-testid="review-order"], button:has-text("Review Order"), .review-order-btn';
-    this.placeOrderButton = '[data-testid="place-order"], button:has-text("Place Order"), .place-order-btn';
-    this.orderConfirmation = '.order-confirmation, [data-testid="order-confirmation"], .order-success';
-    this.orderNumber = '.order-number, [data-testid="order-number"]';
-    this.validationErrors = '.error-message, .field-error, .invalid-feedback, [data-testid="validation-error"]';
   }
 
   async navigate() {
     await super.navigate('/checkout');
-  }
-
-  async fillShippingAddress({ line1, line2, city, state, zip }) {
-    if (line1 !== undefined) await this.fillInput(this.addressLine1, line1);
-    if (line2 !== undefined) await this.fillInput(this.addressLine2, line2);
-    if (city !== undefined) await this.fillInput(this.cityInput, city);
-    if (state !== undefined) await this.fillInput(this.stateInput, state);
-    if (zip !== undefined) await this.fillInput(this.zipInput, zip);
-  }
-
-  async selectPaymentMethod(method) {
-    switch (method) {
-      case 'credit-card':
-        await this.page.locator(this.creditCardOption).click();
-        break;
-      case 'upi':
-        await this.page.locator(this.upiOption).click();
-        break;
-      case 'cod':
-        await this.page.locator(this.codOption).click();
-        break;
-      default:
-        await this.page.locator(`input[value="${method}"]`).click();
-    }
     await this.page.waitForTimeout(500);
   }
 
-  async fillCreditCardDetails({ cardNumber, expiryDate, cvv, nameOnCard }) {
-    if (cardNumber) await this.fillInput(this.cardNumberInput, cardNumber);
-    if (expiryDate) await this.fillInput(this.expiryDateInput, expiryDate);
-    if (cvv) await this.fillInput(this.cvvInput, cvv);
-    if (nameOnCard) await this.fillInput(this.nameOnCardInput, nameOnCard);
+  async fillShipping(data) {
+    if (data.line1) await this.page.locator('input[placeholder*="Street address"]').fill(data.line1);
+    if (data.line2 !== undefined) await this.page.locator('input[placeholder*="Apartment"]').fill(data.line2);
+    if (data.city) await this.page.locator('input[placeholder="City"]').fill(data.city);
+    if (data.state) await this.page.locator('input[placeholder="State"]').fill(data.state);
+    if (data.zip) await this.page.locator('input[placeholder="123456"]').fill(data.zip);
   }
 
-  async fillUpiDetails(upiId) {
-    await this.fillInput(this.upiIdInput, upiId);
+  async clearShippingFields() {
+    await this.page.locator('input[placeholder*="Street address"]').fill('');
+    await this.page.locator('input[placeholder*="Apartment"]').fill('');
+    await this.page.locator('input[placeholder="City"]').fill('');
+    await this.page.locator('input[placeholder="State"]').fill('');
+    await this.page.locator('input[placeholder="123456"]').fill('');
   }
 
-  async reviewOrder() {
-    await this.page.locator(this.reviewOrderButton).click();
-    await this.page.waitForTimeout(1000);
+  async clickContinue() {
+    await this.page.getByRole('button', { name: /^Continue$/i }).click();
+    await this.page.waitForTimeout(500);
+  }
+
+  async clickBack() {
+    await this.page.getByRole('button', { name: /^Back$/i }).click();
+    await this.page.waitForTimeout(400);
+  }
+
+  async selectPaymentLabel(name) {
+    await this.page.locator('.payment-option', { hasText: name }).click();
+    await this.page.waitForTimeout(400);
+  }
+
+  async fillUpiId(id) {
+    await this.page.getByPlaceholder(/paytm|ybl/i).fill(id);
+  }
+
+  async fillCardFields(card) {
+    if (card.cardNumber) await this.page.getByPlaceholder(/1234 5678/).fill(card.cardNumber);
+    if (card.expiry) await this.page.getByPlaceholder('MM/YY').fill(card.expiry);
+    if (card.cvv) await this.page.getByPlaceholder('***').fill(card.cvv);
   }
 
   async placeOrder() {
-    await this.page.locator(this.placeOrderButton).click();
+    await this.page.getByRole('button', { name: /place order/i }).click();
     await this.page.waitForLoadState('domcontentloaded');
   }
 
-  async getOrderConfirmation() {
-    const confirmation = this.page.locator(this.orderConfirmation);
-    await confirmation.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
-    if (await confirmation.isVisible()) {
-      return await confirmation.textContent();
-    }
-    return null;
-  }
-
-  async getOrderNumber() {
-    const orderNum = this.page.locator(this.orderNumber);
-    await orderNum.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    if (await orderNum.isVisible()) {
-      return await orderNum.textContent();
-    }
-    return null;
-  }
-
-  async getValidationErrors() {
-    const errors = this.page.locator(this.validationErrors);
-    await errors.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    const count = await errors.count();
-    const messages = [];
-    for (let i = 0; i < count; i++) {
-      const text = await errors.nth(i).textContent();
-      if (text && text.trim()) {
-        messages.push(text.trim());
-      }
-    }
-    return messages;
-  }
-
-  async isOrderConfirmationVisible() {
-    return await this.isElementVisible(this.orderConfirmation);
+  async isOnOrderOrOrders() {
+    await this.page.waitForURL(/\/orders/, { timeout: 25000 });
   }
 }
 

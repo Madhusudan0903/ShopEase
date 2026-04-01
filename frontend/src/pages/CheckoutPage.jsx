@@ -1,17 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiCheck } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import api from '../api/axios';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { getProductImageUrl } from '../utils/productImage';
 
 const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'UPI', 'Cash on Delivery'];
 
 const STEPS = ['Shipping', 'Payment', 'Review'];
+const SAVED_SHIPPING_KEY = 'capstone_saved_shipping_v1';
+
+function readSavedShipping() {
+  try {
+    const raw = localStorage.getItem(SAVED_SHIPPING_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return {
+      shippingAddressLine1: String(o.shippingAddressLine1 ?? ''),
+      shippingAddressLine2: String(o.shippingAddressLine2 ?? ''),
+      shippingCity: String(o.shippingCity ?? ''),
+      shippingState: String(o.shippingState ?? ''),
+      shippingZip: String(o.shippingZip ?? '').replace(/\D/g, '').slice(0, 6),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedShipping(data) {
+  localStorage.setItem(SAVED_SHIPPING_KEY, JSON.stringify(data));
+}
 
 function CheckoutPage() {
   const navigate = useNavigate();
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
+  const { cartItems, cartTotal, clearCartLocal, fetchCart, loading: cartLoading } = useCart();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -30,8 +55,35 @@ function CheckoutPage() {
     cardExpiry: '',
     cardCvv: '',
   });
+  const [upiId, setUpiId] = useState('');
 
   const [orderNotes, setOrderNotes] = useState('');
+  const [rememberShipping, setRememberShipping] = useState(true);
+  const placeOrderLock = useRef(false);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  useEffect(() => {
+    const saved = readSavedShipping();
+    if (saved?.shippingAddressLine1?.trim()) {
+      setShipping((prev) => ({ ...prev, ...saved }));
+      return;
+    }
+    if (!user) return;
+    if (user.address_line1 || user.city) {
+      setShipping({
+        shippingAddressLine1: user.address_line1 || '',
+        shippingAddressLine2: user.address_line2 || '',
+        shippingCity: user.city || '',
+        shippingState: user.state || '',
+        shippingZip: String(user.zip_code || '')
+          .replace(/\D/g, '')
+          .slice(0, 6),
+      });
+    }
+  }, [user]);
 
   const shippingCost = cartTotal > 499 ? 0 : 49;
   const tax = Math.round(cartTotal * 0.18);
@@ -56,6 +108,13 @@ function CheckoutPage() {
       if (!payment.cardExpiry.trim()) errs.cardExpiry = 'Expiry is required';
       if (!payment.cardCvv.trim()) errs.cardCvv = 'CVV is required';
     }
+    if (payment.paymentMethod === 'UPI') {
+      const u = upiId.trim();
+      if (!u) errs.upiId = 'Enter your UPI ID';
+      else if (!/^[\w.\-]{2,256}@[\w.\-]{2,64}$/.test(u)) {
+        errs.upiId = 'Use a valid UPI ID (e.g. name@paytm)';
+      }
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -71,33 +130,67 @@ function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (placeOrderLock.current || submitting) return;
+    placeOrderLock.current = true;
     setSubmitting(true);
     try {
+      const serverItems = await fetchCart();
+      if (!serverItems?.length) {
+        toast.error('Your cart is empty on the server. Go back to the cart and add items again.');
+        navigate('/cart');
+        return;
+      }
+
       const orderData = {
         shippingAddressLine1: shipping.shippingAddressLine1,
+        shippingAddressLine2: shipping.shippingAddressLine2,
         shippingCity: shipping.shippingCity,
         shippingState: shipping.shippingState,
         shippingZip: shipping.shippingZip,
         paymentMethod: payment.paymentMethod,
         orderNotes,
       };
+      if (payment.paymentMethod === 'UPI') {
+        orderData.upiId = upiId.trim();
+      }
 
       const { data } = await api.post('/orders', orderData);
       if (data.success) {
-        await clearCart();
+        if (rememberShipping) {
+          writeSavedShipping(shipping);
+        }
+        clearCartLocal();
         toast.success('Order placed successfully!');
-        navigate(`/orders/${data.data._id}`);
+        const oid = data.data?.order?.id ?? data.data?.order?._id ?? data.data?.id;
+        if (oid) navigate(`/orders/${oid}`);
+        else navigate('/orders');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      const apiErr = err.response?.data;
+      const first =
+        apiErr?.data?.errors?.[0]?.message ||
+        apiErr?.message;
+      toast.error(first || 'Failed to place order');
     } finally {
       setSubmitting(false);
+      placeOrderLock.current = false;
     }
   };
 
-  if (cartItems.length === 0) {
+  if (!cartLoading && cartItems.length === 0) {
     navigate('/cart');
     return null;
+  }
+
+  if (cartLoading && cartItems.length === 0) {
+    return (
+      <div className="checkout-page">
+        <div className="container">
+          <h1>Checkout</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Loading your cart…</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -123,6 +216,49 @@ function CheckoutPage() {
         {step === 0 && (
           <div className="checkout-form-section">
             <h2>Shipping Address</h2>
+            <div
+              className="checkout-saved-address-actions"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '12px',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const s = readSavedShipping();
+                  if (s?.shippingAddressLine1?.trim()) {
+                    setShipping(s);
+                    toast.info('Loaded saved address');
+                  } else {
+                    toast.info('No saved address on this device yet');
+                  }
+                }}
+              >
+                Use saved address
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (
+                    !shipping.shippingAddressLine1.trim() ||
+                    !shipping.shippingCity.trim()
+                  ) {
+                    toast.error('Fill at least address and city before saving');
+                    return;
+                  }
+                  writeSavedShipping(shipping);
+                  toast.success('Address saved on this device');
+                }}
+              >
+                Save address now
+              </button>
+            </div>
             <div className="form-group">
               <label className="form-label">Address Line 1 *</label>
               <input
@@ -179,6 +315,24 @@ function CheckoutPage() {
               />
               {errors.shippingZip && <p className="form-error">{errors.shippingZip}</p>}
             </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                cursor: 'pointer',
+                marginTop: '8px',
+                fontSize: '0.95rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={rememberShipping}
+                onChange={(e) => setRememberShipping(e.target.checked)}
+              />
+              Remember this shipping address for my next orders (saved on this device)
+            </label>
           </div>
         )}
 
@@ -202,6 +356,24 @@ function CheckoutPage() {
                 </label>
               ))}
             </div>
+
+            {payment.paymentMethod === 'UPI' && (
+              <div className="form-group" style={{ marginTop: '16px' }}>
+                <label className="form-label">UPI ID *</label>
+                <input
+                  type="text"
+                  className={`form-input${errors.upiId ? ' error' : ''}`}
+                  placeholder="yourname@paytm or yourname@ybl"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  autoComplete="off"
+                />
+                {errors.upiId && <p className="form-error">{errors.upiId}</p>}
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                  Enter the UPI ID you will use to pay. This is stored with your order notes for reference.
+                </p>
+              </div>
+            )}
 
             {['Credit Card', 'Debit Card'].includes(payment.paymentMethod) && (
               <>
@@ -274,6 +446,11 @@ function CheckoutPage() {
             <div style={{ marginBottom: '24px' }}>
               <h4 style={{ marginBottom: '8px', fontSize: '0.95rem' }}>Payment:</h4>
               <p style={{ color: 'var(--text-secondary)' }}>{payment.paymentMethod}</p>
+              {payment.paymentMethod === 'UPI' && upiId.trim() && (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
+                  UPI: {upiId.trim()}
+                </p>
+              )}
             </div>
 
             <div style={{ marginBottom: '24px' }}>
@@ -283,7 +460,7 @@ function CheckoutPage() {
                 return (
                   <div key={item._id} className="order-item-row">
                     <div className="order-item-img">
-                      <img src={p.images?.[0] || '/placeholder.png'} alt={p.name} />
+                      <img src={getProductImageUrl(item)} alt={p.name} />
                     </div>
                     <div className="order-item-details">
                       <h4>{p.name}</h4>

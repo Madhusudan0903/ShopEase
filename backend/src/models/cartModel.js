@@ -3,12 +3,12 @@ const db = require('../config/database');
 const CartModel = {
   async getByUserId(userId) {
     const [rows] = await db.query(
-      `SELECT ci.id, ci.product_id, ci.quantity, ci.created_at, ci.updated_at,
-              p.name, p.price, p.image_url, p.stock, p.is_active
-       FROM cart_items ci
-       JOIN products p ON ci.product_id = p.id
-       WHERE ci.user_id = ?
-       ORDER BY ci.created_at DESC`,
+      `SELECT c.id, c.product_id, c.quantity, c.created_at, c.updated_at,
+              p.name, p.price, p.image_url, p.sku, p.stock_quantity as stock, p.is_active
+       FROM cart c
+       JOIN products p ON c.product_id = p.id
+       WHERE c.user_id = ?
+       ORDER BY c.created_at DESC`,
       [userId]
     );
     return rows;
@@ -16,7 +16,7 @@ const CartModel = {
 
   async addItem(userId, productId, quantity) {
     const [result] = await db.query(
-      `INSERT INTO cart_items (user_id, product_id, quantity)
+      `INSERT INTO cart (user_id, product_id, quantity)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity), updated_at = NOW()`,
       [userId, productId, quantity]
@@ -26,7 +26,7 @@ const CartModel = {
 
   async updateQuantity(id, userId, quantity) {
     const [result] = await db.query(
-      'UPDATE cart_items SET quantity = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      'UPDATE cart SET quantity = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
       [quantity, id, userId]
     );
     return result.affectedRows > 0;
@@ -34,26 +34,23 @@ const CartModel = {
 
   async removeItem(id, userId) {
     const [result] = await db.query(
-      'DELETE FROM cart_items WHERE id = ? AND user_id = ?',
+      'DELETE FROM cart WHERE id = ? AND user_id = ?',
       [id, userId]
     );
     return result.affectedRows > 0;
   },
 
   async clearCart(userId) {
-    const [result] = await db.query(
-      'DELETE FROM cart_items WHERE user_id = ?',
-      [userId]
-    );
+    const [result] = await db.query('DELETE FROM cart WHERE user_id = ?', [userId]);
     return result.affectedRows;
   },
 
   async getCartTotal(userId) {
     const [[result]] = await db.query(
-      `SELECT COALESCE(SUM(ci.quantity * p.price), 0) as total
-       FROM cart_items ci
-       JOIN products p ON ci.product_id = p.id
-       WHERE ci.user_id = ?`,
+      `SELECT COALESCE(SUM(c.quantity * p.price), 0) as total
+       FROM cart c
+       JOIN products p ON c.product_id = p.id
+       WHERE c.user_id = ?`,
       [userId]
     );
     return parseFloat(result.total);
@@ -61,15 +58,15 @@ const CartModel = {
 
   async getCartItemCount(userId) {
     const [[result]] = await db.query(
-      'SELECT COALESCE(SUM(quantity), 0) as count FROM cart_items WHERE user_id = ?',
+      'SELECT COALESCE(SUM(quantity), 0) as count FROM cart WHERE user_id = ?',
       [userId]
     );
-    return parseInt(result.count);
+    return parseInt(result.count, 10);
   },
 
   async getItemByProductId(userId, productId) {
     const [rows] = await db.query(
-      'SELECT * FROM cart_items WHERE user_id = ? AND product_id = ?',
+      'SELECT * FROM cart WHERE user_id = ? AND product_id = ?',
       [userId, productId]
     );
     return rows[0] || null;
@@ -77,14 +74,14 @@ const CartModel = {
 
   async getItemById(id, userId) {
     const [rows] = await db.query(
-      `SELECT ci.*, p.stock, p.name, p.price, p.is_active
-       FROM cart_items ci
-       JOIN products p ON ci.product_id = p.id
-       WHERE ci.id = ? AND ci.user_id = ?`,
+      `SELECT c.*, p.stock_quantity as stock, p.name, p.price, p.is_active
+       FROM cart c
+       JOIN products p ON c.product_id = p.id
+       WHERE c.id = ? AND c.user_id = ?`,
       [id, userId]
     );
     return rows[0] || null;
-  }
+  },
 };
 
 module.exports = CartModel;

@@ -24,12 +24,32 @@ function ProductsPage() {
     minRating: searchParams.get('minRating') || '',
     search: searchParams.get('search') || '',
     sort: searchParams.get('sort') || '',
-    page: parseInt(searchParams.get('page')) || 1,
+    page: parseInt(searchParams.get('page'), 10) || 1,
   });
+
+  const querySignature = searchParams.toString();
+
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      category: searchParams.get('category') || '',
+      minPrice: searchParams.get('minPrice') || '',
+      maxPrice: searchParams.get('maxPrice') || '',
+      brand: searchParams.get('brand') || '',
+      minRating: searchParams.get('minRating') || '',
+      search: searchParams.get('search') || '',
+      sort: searchParams.get('sort') || '',
+      page: parseInt(searchParams.get('page'), 10) || 1,
+    }));
+  }, [querySignature]);
 
   useEffect(() => {
     api.get('/categories').then((res) => {
-      if (res.data.success) setCategories(res.data.data || []);
+      if (res.data.success) {
+        const raw = res.data.data;
+        const list = Array.isArray(raw) ? raw : raw?.categories ?? [];
+        setCategories(list);
+      }
     }).catch(() => {});
   }, []);
 
@@ -159,7 +179,7 @@ function ProductsPage() {
             <>
               <div className="products-grid">
                 {products.map((product) => (
-                  <ProductCard key={product._id} product={product} />
+                  <ProductCard key={product._id ?? product.id} product={product} />
                 ))}
               </div>
               <Pagination

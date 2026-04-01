@@ -7,13 +7,14 @@ USE capstone_shopping;
 -- ============================================================
 -- USERS  (password = "Password123!" for all placeholder hashes)
 -- ============================================================
+-- password_hash: bcrypt for plain text "Password123!" (see playwright e2e fixtures)
 INSERT INTO users (first_name, last_name, email, password_hash, phone, address_line1, address_line2, city, state, zip_code, role, is_active)
 VALUES
-  ('Admin',   'User',     'admin@capstone.com',     '$2b$10$Q8Xz3vKJk7r9ZwGpL1YjOeHkMnVbFdAsDfGhJkLqWerTyUiOpA', '555-100-0001', '100 Admin Blvd',    NULL,         'New York',    'NY', '10001', 'admin',    TRUE),
-  ('Alice',   'Johnson',  'alice@example.com',      '$2b$10$R9Ya4wLKl8s0AxHqM2ZkPfIlNnWcGeBtCuDiEjFkGlHmInJoKp', '555-200-0002', '201 Maple St',      'Apt 4B',     'Los Angeles', 'CA', '90001', 'customer', TRUE),
-  ('Bob',     'Williams', 'bob@example.com',        '$2b$10$S0Zb5xMLm9t1ByIrN3AlQgJmOoXdHfCuEvFkGlHmInJoKpLqMr', '555-300-0003', '302 Oak Ave',       NULL,         'Chicago',     'IL', '60601', 'customer', TRUE),
-  ('Carol',   'Martinez', 'carol@example.com',      '$2b$10$T1Ac6yNMn0u2CzJsO4BmRhKnPpYeIgDvFwGxHyIzJaKbLcMdNe', '555-400-0004', '403 Pine Rd',       'Suite 200',  'Houston',     'TX', '77001', 'customer', TRUE),
-  ('David',   'Brown',    'david@example.com',      '$2b$10$U2Bd7zONo1v3DaKtP5CnSiLoQqZfJhEwGxHyIzJaKbLcMdNeOf', '555-500-0005', '504 Cedar Ln',      NULL,         'Phoenix',     'AZ', '85001', 'customer', FALSE);
+  ('Admin',   'User',     'admin@capstone.com',     '$2a$10$9CVfxPtdagVttQlSY5YVDO0UyNCPVq9PTmiqlZYn2mEgukAzUWPSW', '5551000001', '100 Admin Blvd',    NULL,         'New York',    'NY', '10001', 'admin',    TRUE),
+  ('Alice',   'Johnson',  'alice@example.com',      '$2a$10$9CVfxPtdagVttQlSY5YVDO0UyNCPVq9PTmiqlZYn2mEgukAzUWPSW', '5552000002', '201 Maple St',      'Apt 4B',     'Los Angeles', 'CA', '90001', 'customer', TRUE),
+  ('Bob',     'Williams', 'bob@example.com',        '$2a$10$9CVfxPtdagVttQlSY5YVDO0UyNCPVq9PTmiqlZYn2mEgukAzUWPSW', '5553000003', '302 Oak Ave',       NULL,         'Chicago',     'IL', '60601', 'customer', TRUE),
+  ('Carol',   'Martinez', 'carol@example.com',      '$2a$10$9CVfxPtdagVttQlSY5YVDO0UyNCPVq9PTmiqlZYn2mEgukAzUWPSW', '5554000004', '403 Pine Rd',       'Suite 200',  'Houston',     'TX', '77001', 'customer', TRUE),
+  ('David',   'Brown',    'david@example.com',      '$2a$10$9CVfxPtdagVttQlSY5YVDO0UyNCPVq9PTmiqlZYn2mEgukAzUWPSW', '5555000005', '504 Cedar Ln',      NULL,         'Phoenix',     'AZ', '85001', 'customer', FALSE);
 
 -- ============================================================
 -- CATEGORIES
@@ -112,6 +113,10 @@ VALUES (2, 49.99, '201 Maple St', 'Apt 4B', 'Los Angeles', 'CA', '90001', 'cod',
 INSERT INTO orders (user_id, total_amount, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, payment_method, payment_status, order_notes)
 VALUES (3, 54.98, '302 Oak Ave', NULL, 'Chicago', 'IL', '60601', 'credit_card', 'completed', NULL);
 
+-- Order 6 – Alice – Placed only (cancellable; product 4 not yet reviewed by Alice)
+INSERT INTO orders (user_id, total_amount, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, payment_method, payment_status, order_notes)
+VALUES (2, 34.99, '201 Maple St', NULL, 'Los Angeles', 'CA', '90001', 'cod', 'completed', NULL);
+
 -- ============================================================
 -- ORDER ITEMS
 -- ============================================================
@@ -138,6 +143,10 @@ INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALU
 INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES
   (5, 19, 1, 29.99),  -- 1x Leather Wallet
   (5, 20, 1, 24.99);  -- 1x Aviator Sunglasses
+
+-- Order 6 items (Alice – placed, cancellable)
+INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES
+  (6, 4, 1, 34.99);   -- 1x Formal Dress Shirt
 
 -- ============================================================
 -- ORDER STATUS  (multiple entries per order to show lifecycle)
@@ -172,6 +181,10 @@ INSERT INTO order_status (order_id, status, notes, created_at) VALUES
   (5, 'confirmed',        'Payment verified',               '2026-03-20 14:10:00'),
   (5, 'shipped',          'Dispatched via USPS #US345678',  '2026-03-21 10:00:00'),
   (5, 'out_for_delivery', 'With local courier',             '2026-03-23 08:00:00');
+
+-- Order 6 lifecycle → placed only (Alice can cancel)
+INSERT INTO order_status (order_id, status, notes, created_at) VALUES
+  (6, 'placed', 'Order received', '2026-03-28 10:00:00');
 
 -- ============================================================
 -- REVIEWS

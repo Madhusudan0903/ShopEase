@@ -19,16 +19,32 @@ const reviewController = {
         return res.status(409).json(formatResponse(false, 'You have already reviewed this product', null));
       }
 
+      // Eligible if this product appears on an order for this user whose *latest*
+      // status is not cancelled/returned. New checkout orders are only ever `placed`
+      // until an admin advances them — requiring `delivered` blocked all real reviews.
       const [purchaseCheck] = await db.query(
         `SELECT oi.id FROM order_items oi
-         JOIN orders o ON oi.order_id = o.id
-         WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered'
+         INNER JOIN orders o ON oi.order_id = o.id
+         WHERE o.user_id = ? AND oi.product_id = ?
+           AND oi.product_id IS NOT NULL
+           AND (
+             SELECT os.status FROM order_status os
+             WHERE os.order_id = o.id
+             ORDER BY os.created_at DESC, os.id DESC
+             LIMIT 1
+           ) NOT IN ('cancelled', 'returned')
          LIMIT 1`,
         [userId, product_id]
       );
 
       if (purchaseCheck.length === 0) {
-        return res.status(403).json(formatResponse(false, 'You can only review products you have purchased and received', null));
+        return res.status(403).json(
+          formatResponse(
+            false,
+            'You can only review products you have ordered (cancelled or returned orders do not qualify)',
+            null
+          )
+        );
       }
 
       const review = await ReviewModel.create({

@@ -3,10 +3,39 @@ const jwt = require('jsonwebtoken');
 const UserModel = require('../models/userModel');
 const { formatResponse } = require('../utils/helpers');
 
+function formatUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    name: [row.first_name, row.last_name].filter(Boolean).join(' ').trim(),
+    email: row.email,
+    phone: row.phone,
+    role: row.role,
+    address_line1: row.address_line1,
+    address_line2: row.address_line2,
+    city: row.city,
+    state: row.state,
+    zip_code: row.zip_code,
+    is_active: row.is_active,
+  };
+}
+
 const authController = {
   async register(req, res, next) {
     try {
-      const { name, email, password, phone, address, city, state, zip_code } = req.body;
+      const {
+        first_name,
+        last_name,
+        email,
+        password,
+        phone,
+        address_line1,
+        city,
+        state,
+        zip_code,
+      } = req.body;
 
       const existingUser = await UserModel.findByEmail(email);
       if (existingUser) {
@@ -17,15 +46,18 @@ const authController = {
       const hashedPassword = await bcrypt.hash(password, salt);
 
       const user = await UserModel.create({
-        name,
+        first_name,
+        last_name,
         email,
         password: hashedPassword,
         phone,
-        address,
+        address_line1,
         city,
         state,
-        zip_code
+        zip_code,
       });
+
+      const full = await UserModel.findById(user.id);
 
       const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role },
@@ -33,10 +65,12 @@ const authController = {
         { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
       );
 
-      res.status(201).json(formatResponse(true, 'User registered successfully', {
-        user: { id: user.id, name: user.name, email: user.email, role: user.role },
-        token
-      }));
+      res.status(201).json(
+        formatResponse(true, 'User registered successfully', {
+          user: formatUser(full),
+          token,
+        })
+      );
     } catch (error) {
       next(error);
     }
@@ -55,7 +89,7 @@ const authController = {
         return res.status(403).json(formatResponse(false, 'Account has been deactivated', null));
       }
 
-      const isMatch = await bcrypt.compare(password, user.password);
+      const isMatch = await bcrypt.compare(password, user.password_hash);
       if (!isMatch) {
         return res.status(401).json(formatResponse(false, 'Invalid email or password', null));
       }
@@ -66,15 +100,14 @@ const authController = {
         { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
       );
 
-      res.status(200).json(formatResponse(true, 'Login successful', {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        },
-        token
-      }));
+      const full = await UserModel.findById(user.id);
+
+      res.status(200).json(
+        formatResponse(true, 'Login successful', {
+          user: formatUser(full),
+          token,
+        })
+      );
     } catch (error) {
       next(error);
     }
@@ -87,7 +120,7 @@ const authController = {
         return res.status(404).json(formatResponse(false, 'User not found', null));
       }
 
-      res.status(200).json(formatResponse(true, 'Profile retrieved successfully', { user }));
+      res.status(200).json(formatResponse(true, 'Profile retrieved successfully', { user: formatUser(user) }));
     } catch (error) {
       next(error);
     }
@@ -95,19 +128,20 @@ const authController = {
 
   async updateProfile(req, res, next) {
     try {
-      const { name, phone, address, city, state, zip_code, password } = req.body;
+      const { first_name, last_name, phone, address_line1, city, state, zip_code, password } = req.body;
 
       const updateData = {};
-      if (name) updateData.name = name;
-      if (phone) updateData.phone = phone;
-      if (address !== undefined) updateData.address = address;
+      if (first_name !== undefined) updateData.first_name = first_name;
+      if (last_name !== undefined) updateData.last_name = last_name;
+      if (phone !== undefined) updateData.phone = phone || null;
+      if (address_line1 !== undefined) updateData.address_line1 = address_line1;
       if (city !== undefined) updateData.city = city;
       if (state !== undefined) updateData.state = state;
       if (zip_code !== undefined) updateData.zip_code = zip_code;
 
       if (password) {
         const salt = await bcrypt.genSalt(10);
-        updateData.password = await bcrypt.hash(password, salt);
+        updateData.password_hash = await bcrypt.hash(password, salt);
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -120,11 +154,11 @@ const authController = {
       }
 
       const user = await UserModel.findById(req.user.id);
-      res.status(200).json(formatResponse(true, 'Profile updated successfully', { user }));
+      res.status(200).json(formatResponse(true, 'Profile updated successfully', { user: formatUser(user) }));
     } catch (error) {
       next(error);
     }
-  }
+  },
 };
 
 module.exports = authController;

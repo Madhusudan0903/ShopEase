@@ -3,83 +3,60 @@ const BasePage = require('./BasePage');
 class CartPage extends BasePage {
   constructor(page) {
     super(page);
-    this.cartItems = '.cart-item, [data-testid="cart-item"], .cart-row';
-    this.itemCount = '.cart-count, [data-testid="cart-count"], .item-count';
-    this.quantityInput = '.cart-item input[type="number"], [data-testid="quantity-input"]';
-    this.quantityIncrease = '.cart-item .qty-increase, [data-testid="quantity-increase"]';
-    this.quantityDecrease = '.cart-item .qty-decrease, [data-testid="quantity-decrease"]';
-    this.removeButton = '.remove-item, [data-testid="remove-item"], button:has-text("Remove")';
-    this.clearCartButton = '[data-testid="clear-cart"], .clear-cart, button:has-text("Clear Cart")';
-    this.subtotal = '.subtotal, [data-testid="subtotal"]';
-    this.total = '.cart-total, [data-testid="cart-total"], .total';
-    this.checkoutButton = '[data-testid="checkout-button"], .checkout-btn, a:has-text("Checkout"), button:has-text("Checkout")';
-    this.emptyCartMessage = '.empty-cart, [data-testid="empty-cart"], .cart-empty';
-    this.itemName = '.cart-item .item-name, .cart-item .product-name, [data-testid="item-name"]';
-    this.itemPrice = '.cart-item .item-price, .cart-item .price, [data-testid="item-price"]';
+    this.cartItem = '.cart-item';
+    this.emptyState = '.cart-empty';
+    this.orderSummary = '.order-summary';
   }
 
   async navigate() {
     await super.navigate('/cart');
-  }
-
-  async getCartItems() {
-    const items = [];
-    const count = await this.page.locator(this.cartItems).count();
-    for (let i = 0; i < count; i++) {
-      const item = this.page.locator(this.cartItems).nth(i);
-      items.push({
-        name: await item.locator('.item-name, .product-name, [data-testid="item-name"]').textContent().catch(() => ''),
-        price: await item.locator('.item-price, .price, [data-testid="item-price"]').textContent().catch(() => ''),
-      });
-    }
-    return items;
-  }
-
-  async getItemCount() {
-    return await this.page.locator(this.cartItems).count();
-  }
-
-  async updateQuantity(itemIndex, qty) {
-    const item = this.page.locator(this.cartItems).nth(itemIndex);
-    const qtyInput = item.locator('input[type="number"], [data-testid="quantity-input"]');
-    if (await qtyInput.isVisible().catch(() => false)) {
-      await qtyInput.clear();
-      await qtyInput.fill(String(qty));
-      await qtyInput.press('Tab');
-    }
     await this.page.waitForTimeout(500);
   }
 
-  async removeItem(itemIndex) {
-    const item = this.page.locator(this.cartItems).nth(itemIndex);
-    await item.locator(this.removeButton.split(', ').join(', ')).first().click();
-    await this.page.waitForTimeout(500);
+  async getLineCount() {
+    return this.page.locator(this.cartItem).count();
+  }
+
+  async clickQuantityIncrease(itemIndex = 0) {
+    await this.page.locator(this.cartItem).nth(itemIndex).locator('.quantity-selector button').last().click();
+    await this.page.waitForTimeout(600);
+  }
+
+  async clickQuantityDecrease(itemIndex = 0) {
+    await this.page.locator(this.cartItem).nth(itemIndex).locator('.quantity-selector button').first().click();
+    await this.page.waitForTimeout(600);
+  }
+
+  async removeItem(itemIndex = 0) {
+    await this.page.locator(this.cartItem).nth(itemIndex).locator('.cart-item-remove').click();
+    await this.page.waitForTimeout(600);
   }
 
   async clearCart() {
-    await this.page.locator(this.clearCartButton).click();
-    await this.page.waitForTimeout(500);
+    const clearBtn = this.page.getByRole('button', { name: /clear cart/i });
+    if (await clearBtn.isVisible().catch(() => false)) {
+      await clearBtn.click();
+      await this.page.waitForTimeout(600);
+    }
   }
 
-  async getSubtotal() {
-    const text = await this.getText(this.subtotal);
-    const match = text.match(/[\d,.]+/);
-    return match ? parseFloat(match[0].replace(',', '')) : 0;
+  async getSubtotalText() {
+    const row = this.page.locator('.order-summary-row').filter({ hasText: /Subtotal/i });
+    return (await row.locator('span').last().textContent())?.trim() || '';
   }
 
-  async getTotal() {
-    const text = await this.getText(this.total);
-    const match = text.match(/[\d,.]+/);
-    return match ? parseFloat(match[0].replace(',', '')) : 0;
+  async getTotalText() {
+    const row = this.page.locator('.order-summary-row.total');
+    return (await row.locator('span').last().textContent())?.trim() || '';
   }
 
-  async clickCheckout() {
-    await this.page.locator(this.checkoutButton).click();
+  async proceedToCheckout() {
+    await this.page.getByRole('link', { name: /proceed to checkout/i }).click();
     await this.waitForLoad();
   }
 
-  async isCartEmpty() {
-    return await this.isElementVisible(this.emptyCartMessage);
+  async isEmptyVisible() {
+    return this.page.locator(this.emptyState).isVisible();
   }
 }
 
