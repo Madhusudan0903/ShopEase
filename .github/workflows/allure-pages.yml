@@ -3,7 +3,12 @@ name: Allure Report (GitHub Pages)
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      browsers:
+        description: "Browsers to run (chromium | all)"
+        required: false
+        default: "chromium"
 
 jobs:
   test-and-deploy:
@@ -41,6 +46,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            playwright-automation/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('playwright-automation/package-lock.json') }}
 
       - name: Install mysql client
         run: sudo apt-get update && sudo apt-get install -y mysql-client
@@ -101,7 +117,19 @@ jobs:
           CI: true
           BASE_URL: http://localhost:3000
         continue-on-error: true
-        run: npm test
+        run: |
+          BROWSERS_INPUT="${{ github.event.inputs.browsers }}"
+          if [ -z "${BROWSERS_INPUT}" ]; then
+            BROWSERS_INPUT="chromium"
+          fi
+
+          if [ "${BROWSERS_INPUT}" = "all" ]; then
+            # Full cross-browser run (slow).
+            npx playwright test --workers=1
+          else
+            # Default: fast + stable Pages report.
+            npx playwright test --project=chromium --workers=1 --retries=0
+          fi
 
       - name: Generate Allure report
         if: always()
