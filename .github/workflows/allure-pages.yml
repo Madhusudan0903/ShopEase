@@ -75,7 +75,7 @@ jobs:
       - name: Start frontend (Vite)
         working-directory: frontend
         run: |
-          nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/frontend.log 2>&1 &
+          nohup npm run dev -- --host 0.0.0.0 --port 3000 > /tmp/frontend.log 2>&1 &
           echo $! > /tmp/frontend.pid
 
       - name: Wait for UI
