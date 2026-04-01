@@ -5,13 +5,20 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+concurrency:
+  group: allure-pages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: "E2E (${{ matrix.project }}) shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         project: [chromium, firefox, webkit]
+        shardIndex: [1, 2]
+        shardTotal: [2]
 
     services:
       mysql:
@@ -70,7 +77,7 @@ jobs:
         working-directory: playwright-automation
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browser
         working-directory: playwright-automation
         run: npx playwright install --with-deps ${{ matrix.project }}
 
@@ -108,19 +115,20 @@ jobs:
           tail -n 200 /tmp/frontend.log || true
           exit 1
 
-      - name: Run Playwright tests
+      - name: Run Playwright tests (sharded)
         working-directory: playwright-automation
         env:
           CI: true
           BASE_URL: http://localhost:3000
+        # Keep report publishing even if some tests fail:
         continue-on-error: true
-        run: npx playwright test --project=${{ matrix.project }}
+        run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: Upload allure-results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results-${{ matrix.project }}
+          name: allure-results-${{ matrix.project }}-shard-${{ matrix.shardIndex }}
           path: playwright-automation/allure-results
           if-no-files-found: warn
 
@@ -155,7 +163,6 @@ jobs:
         run: |
           rm -rf allure-results
           mkdir -p allure-results
-          # Copy all results into a single allure-results directory
           for d in .allure-artifacts/allure-results-*; do
             if [ -d "$d" ]; then
               cp -R "$d"/. allure-results/ || true
