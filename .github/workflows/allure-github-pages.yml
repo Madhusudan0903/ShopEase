@@ -1,33 +1,31 @@
-# Publishes the Allure report to GitHub Pages after Playwright E2E tests.
+# On every push to main, runs Playwright E2E tests, builds an Allure report,
+# and deploys it to GitHub Pages.
 #
-# Setup:
-# 1. Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions"
-# 2. Repo → Settings → Secrets and variables → Actions → Variables:
-#    - E2E_BASE_URL: public URL where the shopping app is running (required for tests in CI)
-#
-# Triggers:
-# - workflow_dispatch: run manually from the Actions tab
-# - push (optional): uncomment the "on.push" block below if you want automatic runs on main
+# One-time GitHub setup:
+# 1. Settings → Pages → Build and deployment → Source: "GitHub Actions"
+# 2. Settings → Secrets and variables → Actions → Variables:
+#    Add E2E_BASE_URL = your deployed app URL (tests run on GitHub runners, not localhost)
 
-name: Allure report → GitHub Pages
+name: Allure report to GitHub Pages
 
 on:
+  push:
+    branches: [main, master]
   workflow_dispatch:
-  # push:
-  #   branches: [main]
 
-permissions:
+permissio
+ns:
   contents: read
   pages: write
   id-token: write
 
 concurrency:
-  group: allure-github-pages
-  cancel-in-progress: false
+  group: allure-github-pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-allure:
-    name: Run tests and build Allure
+    name: Tests and Allure report
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -68,7 +66,7 @@ jobs:
           path: playwright-automation/allure-report
 
   deploy-pages:
-    name: Deploy to GitHub Pages
+    name: Deploy GitHub Pages
     needs: build-allure
     if: needs.build-allure.result == 'success'
     runs-on: ubuntu-latest
