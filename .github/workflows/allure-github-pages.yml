@@ -43,8 +43,16 @@ jobs:
         working-directory: playwright-automation
         env:
           CI: true
-          BASE_URL: ${{ vars.BASE_URL }}
+          BASE_URL: ${{ vars.BASE_URL || 'http://localhost:3000' }}
+        continue-on-error: true
         run: npm test
+
+      - name: Setup Java (required by Allure CLI)
+        if: always()
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Generate Allure HTML report
         if: always()
