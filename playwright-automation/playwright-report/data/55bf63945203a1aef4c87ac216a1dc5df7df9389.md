@@ -1,0 +1,147 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "Shop Vista" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Shop
+        - generic [ref=e7]: Vista
+      - generic [ref=e8]:
+        - img [ref=e9]
+        - textbox "Search products..." [active] [ref=e12]: xyznonexistentproduct12345
+      - generic [ref=e13]:
+        - link "Products" [ref=e14] [cursor=pointer]:
+          - /url: /products
+        - link "Cart" [ref=e15] [cursor=pointer]:
+          - /url: /cart
+          - img [ref=e16]
+          - text: Cart
+        - link "Login" [ref=e20] [cursor=pointer]:
+          - /url: /login
+        - link "Sign Up" [ref=e21] [cursor=pointer]:
+          - /url: /register
+  - main [ref=e22]:
+    - generic [ref=e24]:
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - heading "Filters" [level=3] [ref=e28]
+          - generic [ref=e29]:
+            - button "Clear All" [ref=e30] [cursor=pointer]
+            - button [ref=e31] [cursor=pointer]:
+              - img [ref=e32]
+        - generic [ref=e35]:
+          - heading "Categories" [level=4] [ref=e36]
+          - generic [ref=e37] [cursor=pointer]:
+            - checkbox "Accessories" [ref=e38]
+            - text: Accessories
+          - generic [ref=e39] [cursor=pointer]:
+            - checkbox "Books" [ref=e40]
+            - text: Books
+          - generic [ref=e41] [cursor=pointer]:
+            - checkbox "Clothing" [ref=e42]
+            - text: Clothing
+          - generic [ref=e43] [cursor=pointer]:
+            - checkbox "Electronics" [ref=e44]
+            - text: Electronics
+          - generic [ref=e45] [cursor=pointer]:
+            - checkbox "Footwear" [ref=e46]
+            - text: Footwear
+          - generic [ref=e47] [cursor=pointer]:
+            - checkbox "Home & Kitchen" [ref=e48]
+            - text: Home & Kitchen
+        - generic [ref=e49]:
+          - heading "Price Range" [level=4] [ref=e50]
+          - generic [ref=e51]:
+            - spinbutton [ref=e52]
+            - generic [ref=e53]: —
+            - spinbutton [ref=e54]
+        - generic [ref=e55]:
+          - heading "Brand" [level=4] [ref=e56]
+          - textbox "Filter by brand..." [ref=e57]
+        - generic [ref=e58]:
+          - heading "Minimum Rating" [level=4] [ref=e59]
+          - generic [ref=e60] [cursor=pointer]:
+            - generic [ref=e61]:
+              - img [ref=e62]
+              - img [ref=e64]
+              - img [ref=e66]
+              - img [ref=e68]
+              - img [ref=e70]
+            - generic [ref=e72]: "& up"
+          - generic [ref=e73] [cursor=pointer]:
+            - generic [ref=e74]:
+              - img [ref=e75]
+              - img [ref=e77]
+              - img [ref=e79]
+              - img [ref=e81]
+              - img [ref=e83]
+            - generic [ref=e85]: "& up"
+          - generic [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]:
+              - img [ref=e88]
+              - img [ref=e90]
+              - img [ref=e92]
+              - img [ref=e94]
+              - img [ref=e96]
+            - generic [ref=e98]: "& up"
+          - generic [ref=e99] [cursor=pointer]:
+            - generic [ref=e100]:
+              - img [ref=e101]
+              - img [ref=e103]
+              - img [ref=e105]
+              - img [ref=e107]
+              - img [ref=e109]
+            - generic [ref=e111]: "& up"
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - heading "Results for \"xyznonexistentproduct12345\"" [level=2] [ref=e115]
+            - generic [ref=e116]: 31 products found
+          - combobox [ref=e119] [cursor=pointer]:
+            - option "Sort By" [selected]
+            - option "Newest"
+            - 'option "Price: Low to High"'
+            - 'option "Price: High to Low"'
+            - option "Top Rated"
+            - 'option "Name: A-Z"'
+        - paragraph [ref=e122]: Loading...
+  - contentinfo [ref=e123]:
+    - generic [ref=e124]:
+      - generic [ref=e125]:
+        - generic [ref=e126]:
+          - heading "ShopVista" [level=3] [ref=e127]
+          - paragraph [ref=e128]: Your one-stop destination for quality products at unbeatable prices. Shop with confidence and enjoy a seamless experience from browse to doorstep.
+        - generic [ref=e129]:
+          - heading "Quick Links" [level=4] [ref=e130]
+          - link "Home" [ref=e131] [cursor=pointer]:
+            - /url: /
+          - link "Products" [ref=e132] [cursor=pointer]:
+            - /url: /products
+          - link "Cart" [ref=e133] [cursor=pointer]:
+            - /url: /cart
+          - link "My Orders" [ref=e134] [cursor=pointer]:
+            - /url: /orders
+        - generic [ref=e135]:
+          - heading "Customer Service" [level=4] [ref=e136]
+          - link "Help Center" [ref=e137] [cursor=pointer]:
+            - /url: /products
+          - link "Shipping Info" [ref=e138] [cursor=pointer]:
+            - /url: /products
+          - link "Returns & Exchanges" [ref=e139] [cursor=pointer]:
+            - /url: /products
+          - link "Contact Us" [ref=e140] [cursor=pointer]:
+            - /url: /products
+        - generic [ref=e141]:
+          - heading "My Account" [level=4] [ref=e142]
+          - link "Profile" [ref=e143] [cursor=pointer]:
+            - /url: /profile
+          - link "Order History" [ref=e144] [cursor=pointer]:
+            - /url: /orders
+          - link "Shopping Cart" [ref=e145] [cursor=pointer]:
+            - /url: /cart
+          - link "Wishlist" [ref=e146] [cursor=pointer]:
+            - /url: /products
+      - paragraph [ref=e148]: © 2026 ShopVista. All rights reserved.
+```

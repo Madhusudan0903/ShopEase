@@ -23,7 +23,12 @@ module.exports = defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // Ensure we run pure Chromium, not Google Chrome "channel".
+        channel: undefined,
+        browserName: "chromium",
+      },
     },
     {
       name: "firefox",

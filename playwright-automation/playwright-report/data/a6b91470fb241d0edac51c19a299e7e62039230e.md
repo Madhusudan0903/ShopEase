@@ -1,0 +1,70 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "Shop Vista" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - text: Shop
+        - generic [ref=e7]: Vista
+      - generic [ref=e8]:
+        - img [ref=e9]
+        - textbox "Search products..." [ref=e12]
+      - generic [ref=e13]:
+        - link "Products" [ref=e14] [cursor=pointer]:
+          - /url: /products
+        - link "Cart" [ref=e15] [cursor=pointer]:
+          - /url: /cart
+          - img [ref=e16]
+          - text: Cart
+        - button "E" [ref=e21] [cursor=pointer]:
+          - img [ref=e22]
+          - text: E
+  - main [ref=e25]:
+    - generic [ref=e27]:
+      - heading "My Orders" [level=1] [ref=e28]
+      - generic [ref=e29]:
+        - img [ref=e31]
+        - heading "No orders yet" [level=2] [ref=e35]
+        - paragraph [ref=e36]: You haven't placed any orders. Start shopping to see them here!
+        - link "Browse Products" [ref=e37] [cursor=pointer]:
+          - /url: /products
+  - contentinfo [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - heading "ShopVista" [level=3] [ref=e42]
+          - paragraph [ref=e43]: Your one-stop destination for quality products at unbeatable prices. Shop with confidence and enjoy a seamless experience from browse to doorstep.
+        - generic [ref=e44]:
+          - heading "Quick Links" [level=4] [ref=e45]
+          - link "Home" [ref=e46] [cursor=pointer]:
+            - /url: /
+          - link "Products" [ref=e47] [cursor=pointer]:
+            - /url: /products
+          - link "Cart" [ref=e48] [cursor=pointer]:
+            - /url: /cart
+          - link "My Orders" [ref=e49] [cursor=pointer]:
+            - /url: /orders
+        - generic [ref=e50]:
+          - heading "Customer Service" [level=4] [ref=e51]
+          - link "Help Center" [ref=e52] [cursor=pointer]:
+            - /url: /orders
+          - link "Shipping Info" [ref=e53] [cursor=pointer]:
+            - /url: /orders
+          - link "Returns & Exchanges" [ref=e54] [cursor=pointer]:
+            - /url: /orders
+          - link "Contact Us" [ref=e55] [cursor=pointer]:
+            - /url: /orders
+        - generic [ref=e56]:
+          - heading "My Account" [level=4] [ref=e57]
+          - link "Profile" [ref=e58] [cursor=pointer]:
+            - /url: /profile
+          - link "Order History" [ref=e59] [cursor=pointer]:
+            - /url: /orders
+          - link "Shopping Cart" [ref=e60] [cursor=pointer]:
+            - /url: /cart
+          - link "Wishlist" [ref=e61] [cursor=pointer]:
+            - /url: /orders
+      - paragraph [ref=e63]: © 2026 ShopVista. All rights reserved.
+```
