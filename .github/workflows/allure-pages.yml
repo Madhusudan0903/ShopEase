@@ -47,6 +47,12 @@ jobs:
         working-directory: playwright-automation
         run: npm ci
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('playwright-automation/package-lock.json') }}
+
       - name: Install Playwright browsers
         working-directory: playwright-automation
         run: npx playwright install --with-deps
@@ -70,7 +76,7 @@ jobs:
         env:
           CI: true
           BASE_URL: http://127.0.0.1:3000
-        run: npm test
+        run: npx playwright test --project=chromium --retries=0
 
       - name: Generate Allure HTML report
         if: always()
