@@ -8,7 +8,8 @@ module.exports = defineConfig({
 
   forbidOnly: !!process.env.CI,
   retries: 1,
-  workers: process.env.CI ? 2 : 2,
+  // CI is slower + app is stateful (shared users/cart). Keep it single worker to reduce flakiness.
+  workers: process.env.CI ? 1 : 2,
 
   reporter: [["html", { open: "never" }], ["allure-playwright"], ["list"]],
 
