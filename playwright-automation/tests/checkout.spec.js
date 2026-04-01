@@ -34,8 +34,6 @@ async function ensureCheckoutReady(page) {
   await page.goto('/checkout');
 }
 
-test.describe.configure({ mode: 'serial' });
-
 test.describe('Checkout Flow', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsUser(page, login.email, login.password);

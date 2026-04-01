@@ -14,8 +14,6 @@ async function openOrdersPage(page) {
   }
 }
 
-test.describe.configure({ mode: 'serial' });
-
 test.describe('Order Tracking', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsUser(page, login.email, login.password);

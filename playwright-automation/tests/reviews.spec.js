@@ -6,8 +6,6 @@ const { loginAsUser, getToastText } = require('../utils/playwright-helpers');
 const login = getTestData('login', 'valid');
 const rev = getTestData('reviews');
 
-test.describe.configure({ mode: 'serial' });
-
 test.describe('Product Reviews', () => {
   async function clickReviewStar(page, index) {
     await page.locator('.review-form .star-rating .star').nth(index).click();

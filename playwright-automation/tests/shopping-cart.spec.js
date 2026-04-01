@@ -6,8 +6,6 @@ const { loginAsUser } = require('../utils/playwright-helpers');
 const login = getTestData('login', 'valid');
 const products = getTestData('products');
 
-test.describe.configure({ mode: 'serial' });
-
 test.describe('Shopping Cart', () => {
   async function resetCartViaApi(page) {
     await page.evaluate(async () => {
