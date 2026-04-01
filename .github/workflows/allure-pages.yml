@@ -64,7 +64,7 @@ jobs:
         run: |
           mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/schema.sql
-          mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/seed.sql
+          mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/seed-data.sql
 
       - name: Start backend
         working-directory: backend
