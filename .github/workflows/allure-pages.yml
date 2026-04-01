@@ -31,6 +31,10 @@ jobs:
       DB_PASSWORD: rootpass
       DB_NAME: capstone_shopping
       PORT: 5000
+      # backend/.env is not in git — without these, jwt.sign() throws and login/register return 500 in CI
+      JWT_SECRET: shopease_ci_jwt_hs256_secret_min_32_chars_long
+      JWT_EXPIRES_IN: 24h
+      NODE_ENV: test
 
     steps:
       - name: Checkout
@@ -72,6 +76,32 @@ jobs:
           nohup npm run start > /tmp/backend.log 2>&1 &
           echo $! > /tmp/backend.pid
 
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 90); do
+            if curl -sf "http://127.0.0.1:5000/" >/dev/null; then
+              echo "Backend is up"
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -sf "http://127.0.0.1:5000/" >/dev/null; then
+            echo "Backend did not become ready in time"
+            tail -n 200 /tmp/backend.log || true
+            exit 1
+          fi
+          echo "Smoke: POST /api/auth/login (seeded alice)"
+          LOGIN_JSON=$(curl -sf -X POST "http://127.0.0.1:5000/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alice@example.com","password":"Password123!"}') || true
+          echo "$LOGIN_JSON" | grep -q '"success":true' || {
+            echo "Login smoke test failed (JWT/DB/bcrypt). Response:"
+            echo "$LOGIN_JSON"
+            tail -n 200 /tmp/backend.log || true
+            exit 1
+          }
+          echo "Login smoke OK"
+
       - name: Start frontend (Vite)
         working-directory: frontend
         run: |
@@ -80,15 +110,29 @@ jobs:
 
       - name: Wait for UI
         run: |
-          for i in $(seq 1 60); do
-            if curl -s "http://localhost:3000/login" >/dev/null; then
+          for i in $(seq 1 90); do
+            if curl -sf "http://127.0.0.1:3000/login" >/dev/null; then
               echo "Frontend is up"
-              exit 0
+              break
             fi
             sleep 1
           done
-          echo "Frontend did not become ready in time"
-          exit 1
+          if ! curl -sf "http://127.0.0.1:3000/login" >/dev/null; then
+            echo "Frontend did not become ready in time"
+            tail -n 200 /tmp/frontend.log || true
+            exit 1
+          fi
+          echo "Smoke: login via Vite proxy /api"
+          PROXY_JSON=$(curl -sf -X POST "http://127.0.0.1:3000/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alice@example.com","password":"Password123!"}') || true
+          echo "$PROXY_JSON" | grep -q '"success":true' || {
+            echo "Proxy login smoke failed. Response:"
+            echo "$PROXY_JSON"
+            tail -n 200 /tmp/frontend.log || true
+            exit 1
+          }
+          echo "Proxy login smoke OK"
 
       - name: Run Playwright tests
         working-directory: playwright-automation

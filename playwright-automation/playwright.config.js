@@ -8,8 +8,8 @@ module.exports = defineConfig({
 
   forbidOnly: !!process.env.CI,
   retries: 1,
-  // CI is slower + app is stateful (shared users/cart). Keep it single worker to reduce flakiness.
-  workers: process.env.CI ? 2 : undefined,
+  // CI: stateful app + shared DB — one worker avoids races; JWT/DB issues surface as login timeouts
+  workers: process.env.CI ? 1 : undefined,
 
   reporter: [["html", { open: "never" }], ["allure-playwright"], ["list"]],
 
@@ -41,6 +41,7 @@ module.exports = defineConfig({
     },
   ],
 
-  timeout: 30000,
+  // CI: allow extra time for navigation + login retries when the runner is cold
+  timeout: process.env.CI ? 90000 : 30000,
 
 });
