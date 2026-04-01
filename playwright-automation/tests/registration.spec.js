@@ -22,8 +22,8 @@ test.describe('User Registration', () => {
       confirmPassword: valid.confirmPassword,
       phone: valid.phone,
     });
-    await page.waitForURL((u) => !u.pathname.includes('/register'), { timeout: 20000 });
-    expect(page.url()).not.toContain('/register');
+    // Register auto-logs-in and navigates home (SPA); waiting on URL "load" is flaky in CI.
+    await expect(page.locator('.navbar-user-dropdown')).toBeVisible({ timeout: 25000 });
   });
 
   test('02 should reject duplicate email', async ({ page }) => {

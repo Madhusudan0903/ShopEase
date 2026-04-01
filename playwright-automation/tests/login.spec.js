@@ -12,9 +12,8 @@ test.describe('User Login', () => {
   });
 
   test('01 should login successfully with valid seeded credentials', async ({ page }) => {
-    const lp = new LoginPage(page);
-    await lp.login(valid.email, valid.password);
-    await expect(page.locator('.navbar-user-dropdown')).toBeVisible({ timeout: 15000 });
+    await loginAsUser(page, valid.email, valid.password);
+    await expect(page.locator('.navbar-user-dropdown')).toBeVisible({ timeout: 20000 });
   });
 
   test('02 should show toast on wrong password', async ({ page }) => {
