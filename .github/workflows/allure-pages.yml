@@ -1,15 +1,23 @@
-name: Allure Report (GitHub Pages)
+name: Playwright Tests & Allure Report (GitHub Pages)
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
-  workflow_dispatch: {}
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: allure-pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-and-deploy:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     services:
       mysql:
@@ -23,48 +31,56 @@ jobs:
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=20
+          --health-retries=30
 
     env:
+      CI: "true"
       DB_HOST: 127.0.0.1
       DB_USER: root
       DB_PASSWORD: rootpass
       DB_NAME: capstone_shopping
       PORT: 5000
+      NODE_ENV: test
+      BASE_URL: http://localhost:3000
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            playwright-automation/package-lock.json
 
       - name: Install mysql client
         run: sudo apt-get update && sudo apt-get install -y mysql-client
 
-      - name: Install backend deps
+      - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      - name: Install frontend deps
+      - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Install automation deps
+      - name: Install Playwright automation dependencies
         working-directory: playwright-automation
         run: npm ci
 
       - name: Install Playwright browsers
         working-directory: playwright-automation
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: npx playwright install --with-deps
 
       - name: Init database (schema + seed)
         run: |
           mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
           mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/schema.sql
-          mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/seed.sql
+          mysql -h 127.0.0.1 -P 3306 -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" < database/seed-data.sql
 
       - name: Start backend
         working-directory: backend
@@ -75,44 +91,63 @@ jobs:
       - name: Start frontend (Vite)
         working-directory: frontend
         run: |
-          nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/frontend.log 2>&1 &
+          nohup npm run dev -- --host 0.0.0.0 --port 3000 > /tmp/frontend.log 2>&1 &
           echo $! > /tmp/frontend.pid
 
       - name: Wait for UI
         run: |
           for i in $(seq 1 60); do
-            if curl -s "http://localhost:5173/login" >/dev/null; then
+            if curl -s "http://localhost:3000/login" >/dev/null; then
               echo "Frontend is up"
               exit 0
             fi
             sleep 1
           done
           echo "Frontend did not become ready in time"
+          echo "---- backend log ----"
+          tail -n 200 /tmp/backend.log || true
+          echo "---- frontend log ----"
+          tail -n 200 /tmp/frontend.log || true
           exit 1
 
-      - name: Run Playwright tests
+      - name: Run Playwright Tests (Allure enabled)
+        if: always()
         working-directory: playwright-automation
+        run: npx playwright test --workers=1
         continue-on-error: true
-        run: npm test
 
       - name: Generate Allure report
         if: always()
         working-directory: playwright-automation
         run: |
-          if [ -d "allure-results" ] && [ "$(ls -A allure-results 2>/dev/null | wc -l | tr -d ' ')" -gt 0 ]; then
-            npx allure generate ./allure-results --clean -o ./allure-report
-          else
-            echo "No allure-results found; skipping Allure generation."
-            mkdir -p ./allure-report
-          fi
+          mkdir -p allure-results
+          npx allure generate ./allure-results --clean -o ./allure-report
+        continue-on-error: true
 
-      - name: Deploy to GitHub Pages (gh-pages)
+      - name: Upload Allure raw results
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: playwright-automation/allure-results
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Allure HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: playwright-automation/allure-report
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        if: always() && github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./playwright-automation/allure-report
           publish_branch: gh-pages
+          publish_dir: playwright-automation/allure-report
           enable_jekyll: false
           force_orphan: true
-          commit_message: "Update Allure report"
